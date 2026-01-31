@@ -1,6 +1,28 @@
 # Convergence
 
+[![CI/CD](https://github.com/byrn-baker/Convergence/actions/workflows/ci.yml/badge.svg)](https://github.com/byrn-baker/Convergence/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 AI-Driven Network Observability and Automation
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Development](#development)
+- [Testing](#testing)
+- [Observability](#observability)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+
+---
 
 ## Overview
 
@@ -30,14 +52,47 @@ Convergence is an intelligent network automation platform that combines:
 └─────────────┘      └──────────────┘      └─────────────────┘
 ```
 
-### Features
+### Key Features
 
+#### 🤖 AI-Powered Automation
+- **Natural Language Interface**: Control your network using plain English commands
+- **Autonomous Agent**: LangGraph-powered agent that plans and executes complex workflows
+- **Tool Orchestration**: AI agent intelligently selects and chains tools to accomplish tasks
+- **Multi-LLM Support**: Works with OpenAI (GPT-4) and Anthropic (Claude) models
+
+#### 🔍 Network Discovery & Management
 - **Autonomous Device Discovery**: AI agent discovers devices and populates Nautobot
-- **Configuration Management**: Backup configs, detect drift, generate configurations
-- **Observability**: Collect and visualize network metrics and logs
-- **Natural Language Interface**: Query and control your network using plain English
+- **Multi-Vendor Support**: Cisco IOS, IOS-XE, NX-OS, and more (Netmiko-based)
+- **Configuration Management**: Backup, restore, compare, and track configuration changes
+- **Nautobot Integration**: Full CRUD operations for devices, sites, and inventory
+
+#### 📊 Observability & Monitoring
+- **Telemetry Pipeline**: Vector-based collection of syslog, SNMP traps, and streaming telemetry
+- **Time-Series Storage**: VictoriaMetrics for efficient metrics storage and querying
+- **Visualization**: Grafana dashboards for real-time network insights
+- **Centralized Logging**: Aggregate and analyze logs from all network devices
+
+#### 🧪 Production-Ready Development
+- **Comprehensive Testing**: 36+ unit tests with 88.6% coverage
+- **CI/CD Pipeline**: Automated testing, linting, and security scans
+- **Type Safety**: Full mypy type checking
+- **Code Quality**: Black formatting and Ruff linting
 
 ## Quick Start
+
+### One-Command Quickstart
+
+For the fastest setup experience:
+
+```bash
+git clone https://github.com/byrn-baker/Convergence.git
+cd Convergence
+cp .env.example .env
+# Edit .env with your API keys
+./quickstart.sh
+```
+
+This will start all services and set up the agent environment automatically.
 
 ### Prerequisites
 
@@ -46,7 +101,9 @@ Convergence is an intelligent network automation platform that combines:
 - OpenAI or Anthropic API key
 - Network devices accessible via SSH (for agent operations)
 
-### 1. Infrastructure Setup
+### Manual Setup
+
+#### 1. Infrastructure Setup
 
 Clone the repository and set up environment variables:
 
@@ -77,7 +134,7 @@ Services will be available at:
 - **VictoriaMetrics**: http://localhost:8428
 - **Vector API**: http://localhost:8686
 
-### 2. Agent Setup
+#### 2. Agent Setup
 
 Navigate to the agent directory and run setup:
 
@@ -93,7 +150,7 @@ source venv/bin/activate
 pip install -e .
 ```
 
-### 3. Configure Agent
+#### 3. Configure Agent
 
 Edit the `.env` file in the project root with your credentials:
 
@@ -232,17 +289,52 @@ def my_new_tool(param: str) -> dict:
 
 ### Testing
 
+Convergence has comprehensive test coverage with unit and integration tests.
+
 ```bash
 # Install dev dependencies
+cd agent
 pip install -e ".[dev]"
 
-# Run tests (coming soon)
+# Run all tests
 pytest
 
-# Code formatting
+# Run specific test suites
+pytest tests/unit/          # Unit tests only
+pytest tests/integration/   # Integration tests (requires Docker services)
+
+# Run with coverage
+pytest --cov=agent --cov-report=html --cov-report=term
+
+# Run tests using the test runner script
+./run_tests.sh              # Run all tests
+./run_tests.sh unit         # Unit tests only
+./run_tests.sh lint         # Linting only
+./run_tests.sh security     # Security scans
+
+# Code formatting and linting
 black agent/
 ruff check agent/
+mypy agent/
 ```
+
+**Test Coverage:**
+- 36 unit tests covering all core modules
+- Integration tests for Nautobot connectivity
+- 88.6% coverage on core modules
+- Automated CI/CD with GitHub Actions
+
+See [TESTING.md](TESTING.md) for detailed testing documentation.
+
+## Documentation
+
+Comprehensive documentation is available:
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture, component diagrams, data flows, and deployment patterns
+- **[TESTING.md](TESTING.md)** - Testing strategy, test execution, CI/CD pipeline details
+- **[ROADMAP.md](ROADMAP.md)** - Project roadmap with 4-phase implementation plan
+- **[PHASE2_GUIDE.md](PHASE2_GUIDE.md)** - Guide for integrating Nautobot apps (Device Onboarding, Golden Config)
+- **[EXAMPLES.md](EXAMPLES.md)** - Usage examples and common workflows
 
 ## Observability
 
@@ -266,41 +358,134 @@ VictoriaMetrics is pre-configured as a datasource.
 
 ## Roadmap
 
-- [ ] Phase 1: Foundation ✅
-  - [x] Docker-compose stack
-  - [x] Basic agent scaffold
-  - [x] Nautobot integration
-  - [x] Device connectivity
+### Phase 1: Foundation ✅ (Completed)
+- [x] Docker-compose infrastructure stack
+- [x] AI agent scaffold with LangGraph
+- [x] Nautobot integration and API client
+- [x] Device connectivity tools (SSH/Netmiko)
+- [x] Comprehensive testing infrastructure
+- [x] CI/CD pipeline with GitHub Actions
+- [x] Complete documentation
 
-- [ ] Phase 2: Enhanced Discovery
-  - [ ] Multi-vendor support (Arista, Juniper, etc.)
-  - [ ] Bulk discovery workflows
-  - [ ] CDP/LLDP neighbor discovery
-  - [ ] Automated topology mapping
+### Phase 2: Enhanced Discovery (In Progress)
+- [ ] Integrate Nautobot Device Onboarding app
+- [ ] Integrate Golden Config app for config management
+- [ ] Multi-vendor support (Arista, Juniper, Palo Alto)
+- [ ] Bulk discovery workflows
+- [ ] CDP/LLDP neighbor discovery
+- [ ] Automated topology mapping
 
-- [ ] Phase 3: Advanced Observability
-  - [ ] Pre-built Grafana dashboards
-  - [ ] Anomaly detection
-  - [ ] Predictive analytics
-  - [ ] Custom metric collectors
+### Phase 3: Advanced Observability
+- [ ] Pre-built Grafana dashboards
+- [ ] Anomaly detection with AI
+- [ ] Predictive analytics
+- [ ] Custom metric collectors
+- [ ] Alert correlation and intelligent routing
 
-- [ ] Phase 4: Config Management
-  - [ ] Config template generation
-  - [ ] Drift detection and remediation
-  - [ ] Change approval workflows
-  - [ ] Rollback mechanisms
-  - [ ] Compliance checking
+### Phase 4: Config Management
+- [ ] AI-driven config template generation
+- [ ] Drift detection and remediation
+- [ ] Change approval workflows with validation
+- [ ] Automated rollback mechanisms
+- [ ] Compliance checking against policies
 
-- [ ] Phase 5: Autonomous Operations
-  - [ ] Self-healing capabilities
-  - [ ] Proactive issue detection
-  - [ ] Capacity planning
-  - [ ] Multi-agent orchestration
+### Phase 5: Autonomous Operations
+- [ ] Self-healing capabilities
+- [ ] Proactive issue detection
+- [ ] Capacity planning and optimization
+- [ ] Multi-agent orchestration
+- [ ] Natural language incident response
+
+See [ROADMAP.md](ROADMAP.md) for detailed timeline and implementation details.
+
+## Technology Stack
+
+### AI & Orchestration
+- **LangGraph** 0.2+ - Agent workflow orchestration
+- **LangChain** 0.3+ - LLM abstraction and tool integration
+- **OpenAI GPT-4** / **Anthropic Claude** - Large language models
+
+### Network Automation
+- **Nautobot** 3.0.5 - Network source of truth (DCIM, IPAM)
+- **Netmiko** 4.3+ - Multi-vendor SSH connectivity
+- **Nornir** 3.4+ - Network automation framework
+- **Pynautobot** 2.0+ - Nautobot Python API client
+
+### Observability Stack
+- **Vector** - High-performance telemetry pipeline
+- **VictoriaMetrics** - Time-series metrics database
+- **Grafana** - Metrics visualization and alerting
+- **PostgreSQL** - Relational database for Nautobot
+- **Redis** - Caching and task queue
+
+### Development Tools
+- **Python** 3.12+ - Primary programming language
+- **Pydantic** 2.0+ - Settings management and validation
+- **Typer** - CLI framework
+- **Rich** - Terminal formatting and output
+
+### Testing & Quality
+- **pytest** 8.0+ - Testing framework
+- **pytest-cov** - Code coverage reporting
+- **Black** - Code formatting
+- **Ruff** - Fast Python linter
+- **mypy** - Static type checking
+- **Bandit** - Security vulnerability scanning
+
+### Infrastructure
+- **Docker** & **Docker Compose** - Container orchestration
+- **GitHub Actions** - CI/CD automation
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+Contributions are welcome! Here's how you can help:
+
+### Reporting Issues
+- Use GitHub Issues to report bugs or request features
+- Include reproduction steps, error messages, and environment details
+- Check existing issues before creating a new one
+
+### Pull Requests
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes with clear commit messages
+4. Add tests for new functionality
+5. Ensure all tests pass (`./agent/run_tests.sh`)
+6. Run linting and formatting (`black agent/ && ruff check agent/`)
+7. Submit a pull request with a clear description
+
+### Development Setup
+```bash
+# Clone your fork
+git clone https://github.com/YOUR_USERNAME/Convergence.git
+cd Convergence
+
+# Create virtual environment
+cd agent
+python3 -m venv venv
+source venv/bin/activate
+
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run full test suite
+./run_tests.sh
+```
+
+### Code Standards
+- Follow PEP 8 style guidelines (enforced by Black and Ruff)
+- Add type hints to all functions (checked by mypy)
+- Write docstrings for public APIs
+- Maintain test coverage above 80%
+- Update documentation for new features
 
 ## License
 
 See [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ for Network Engineers and AI enthusiasts**
