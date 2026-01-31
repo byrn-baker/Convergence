@@ -34,7 +34,12 @@ services:
 
   # Nautobot - Source of Truth
   nautobot:
-    image: networktocode/nautobot:3.0.5-py3.12
+    build:
+      context: ./nautobot_config
+      dockerfile: Dockerfile
+      args:
+        NAUTOBOT_VERSION: 3.0.5-py3.12
+    image: convergence-nautobot:latest
     container_name: convergence-nautobot
     user: "0:0"  # Run as root to fix WSL2 volume permission issues
     environment:
@@ -53,6 +58,9 @@ services:
       NAUTOBOT_SUPERUSER_NAME: ${NAUTOBOT_SUPERUSER_NAME:-admin}
       NAUTOBOT_SUPERUSER_EMAIL: ${NAUTOBOT_SUPERUSER_EMAIL:-admin@example.com}
       NAUTOBOT_SUPERUSER_PASSWORD: ${NAUTOBOT_SUPERUSER_PASSWORD:-admin}
+      # Poetry and plugin installation
+      NAUTOBOT_ROOT: /opt/nautobot
+      NAUTOBOT_CONFIG: /opt/nautobot/nautobot_config.py
     ports:
       - "8000:8080"
     volumes:
