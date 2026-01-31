@@ -36,6 +36,7 @@ services:
   nautobot:
     image: networktocode/nautobot:3.0.5-py3.12
     container_name: convergence-nautobot
+    user: "0:0"  # Run as root to fix WSL2 volume permission issues
     environment:
       NAUTOBOT_DB_ENGINE: django.db.backends.postgresql
       NAUTOBOT_DB_HOST: postgres
