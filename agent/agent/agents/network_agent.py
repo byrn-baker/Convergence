@@ -11,6 +11,7 @@ from langgraph.graph.message import add_messages
 from agent.config import settings
 from agent.tools.nautobot_client import NautobotClient
 from agent.tools.device_tools import DeviceTools
+from agent.tools.nautobot_apps import NautobotAppsClient
 
 
 class AgentState(TypedDict):
@@ -30,18 +31,29 @@ def create_network_agent() -> StateGraph:
     # Initialize tools
     nautobot = NautobotClient()
     device_tools = DeviceTools()
+    nautobot_apps = NautobotAppsClient()
 
-    # Create tool list
+    # Create tool list with Phase 1 and Phase 2 tools
     tools = [
+        # Phase 1: Basic Nautobot operations
         nautobot.get_device,
         nautobot.list_devices,
         nautobot.create_device,
         nautobot.update_device,
         nautobot.get_device_config_context,
+        # Phase 1: Device connectivity
         device_tools.run_command,
         device_tools.get_device_facts,
         device_tools.get_interfaces,
         device_tools.backup_config,
+        # Phase 2: Device Onboarding App
+        nautobot_apps.onboard_device,
+        nautobot_apps.get_onboarding_status,
+        nautobot_apps.bulk_onboard_devices,
+        nautobot_apps.list_onboarding_tasks,
+        # Phase 2: Golden Config App
+        nautobot_apps.get_golden_config,
+        nautobot_apps.compare_config,
     ]
 
     # Initialize LLM based on configuration
