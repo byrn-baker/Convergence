@@ -110,11 +110,8 @@ class NautobotAppsClient:
         """Onboard multiple devices in bulk.
 
         Args:
-            device_list: List of device dictionaries with keys:
-                - ip_address: Device IP
-                - platform: Device platform
-                - site (optional): Site name
-                - role (optional): Device role
+            device_list: List of device dictionaries. Each dict must contain
+                'ip_address' and 'platform' keys. Optional keys are 'site' and 'role'.
 
         Returns:
             Dictionary with task IDs and summary

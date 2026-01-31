@@ -130,10 +130,10 @@ class NautobotClient:
 
         Args:
             name: Device name to update
-            **kwargs: Fields to update
 
         Returns:
-            Updated device information
+            Updated device information. Additional fields can be passed as
+            keyword arguments to update device attributes (status, site, etc.)
         """
         try:
             device = self.api.dcim.devices.get(name=name)
