@@ -1,0 +1,13 @@
+# Nautobot Apps for Convergence
+
+# Device Onboarding - Automate device discovery and onboarding
+nautobot-device-onboarding>=4.0.0
+
+# Golden Config - Configuration management (for Phase 4)
+nautobot-golden-config>=2.1.0
+
+# Network Importer - Import network data from various sources (optional)
+# nautobot-network-importer>=3.0.0
+
+# Device Lifecycle - Track hardware lifecycle (useful for capacity planning)
+nautobot-device-lifecycle-mgmt>=2.0.0

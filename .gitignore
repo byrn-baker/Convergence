@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Convergence Project Specific
+# Docker volumes (data persists in named volumes)
+# Backup directories
+backups/
+configs/
+
+# LangSmith / LangChain
+.langchain/

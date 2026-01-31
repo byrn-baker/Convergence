@@ -1,0 +1,146 @@
+services:
+  # PostgreSQL - Database for Nautobot
+  postgres:
+    image: postgres:15-alpine
+    container_name: convergence-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nautobot}
+      POSTGRES_USER: ${POSTGRES_USER:-nautobot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nautobot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - convergence
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nautobot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Cache for Nautobot
+  redis:
+    image: redis:7-alpine
+    container_name: convergence-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - convergence
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nautobot - Source of Truth
+  nautobot:
+    image: networktocode/nautobot:3.0.5-py3.12
+    container_name: convergence-nautobot
+    environment:
+      NAUTOBOT_DB_ENGINE: django.db.backends.postgresql
+      NAUTOBOT_DB_HOST: postgres
+      NAUTOBOT_DB_PORT: 5432
+      NAUTOBOT_DB_NAME: ${POSTGRES_DB:-nautobot}
+      NAUTOBOT_DB_USER: ${POSTGRES_USER:-nautobot}
+      NAUTOBOT_DB_PASSWORD: ${POSTGRES_PASSWORD:-nautobot}
+      NAUTOBOT_REDIS_HOST: redis
+      NAUTOBOT_REDIS_PORT: 6379
+      NAUTOBOT_SECRET_KEY: ${NAUTOBOT_SECRET_KEY:-insecure-secret-key-change-me}
+      NAUTOBOT_ALLOWED_HOSTS: "*"
+      NAUTOBOT_CREATE_SUPERUSER: "true"
+      NAUTOBOT_SUPERUSER_API_TOKEN: ${NAUTOBOT_API_TOKEN:-0123456789abcdef0123456789abcdef01234567}
+      NAUTOBOT_SUPERUSER_NAME: ${NAUTOBOT_SUPERUSER_NAME:-admin}
+      NAUTOBOT_SUPERUSER_EMAIL: ${NAUTOBOT_SUPERUSER_EMAIL:-admin@example.com}
+      NAUTOBOT_SUPERUSER_PASSWORD: ${NAUTOBOT_SUPERUSER_PASSWORD:-admin}
+    ports:
+      - "8000:8080"
+    volumes:
+      - nautobot_media:/opt/nautobot/media
+      - nautobot_git:/opt/nautobot/git
+    networks:
+      - convergence
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # VictoriaMetrics - Metrics Storage
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    container_name: convergence-victoriametrics
+    command:
+      - '--storageDataPath=/victoria-metrics-data'
+      - '--httpListenAddr=:8428'
+      - '--retentionPeriod=12'  # months
+    ports:
+      - "8428:8428"
+    volumes:
+      - victoriametrics_data:/victoria-metrics-data
+    networks:
+      - convergence
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8428/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: convergence-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: ""
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - convergence
+    depends_on:
+      - victoriametrics
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Vector - Telemetry Pipeline
+  vector:
+    image: timberio/vector:latest-alpine
+    container_name: convergence-vector
+    ports:
+      - "8686:8686"  # Vector API
+      - "514:514/udp"  # Syslog
+      - "162:162/udp"  # SNMP traps
+      - "9000:9000"  # gRPC (for gNMI/streaming telemetry)
+    volumes:
+      - ./vector/vector.toml:/etc/vector/vector.toml:ro
+      - vector_data:/var/lib/vector
+    networks:
+      - convergence
+    depends_on:
+      - victoriametrics
+    command: ["--config", "/etc/vector/vector.toml"]
+
+networks:
+  convergence:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  nautobot_media:
+  nautobot_git:
+  victoriametrics_data:
+  grafana_data:
+  vector_data:

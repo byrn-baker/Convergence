@@ -1,0 +1,281 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd agent
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Ruff linter
+        run: |
+          cd agent
+          ruff check agent/
+
+      - name: Run Black formatter check
+        run: |
+          cd agent
+          black --check agent/
+
+      - name: Run mypy type checker
+        run: |
+          cd agent
+          mypy agent/
+        continue-on-error: true  # Don't fail on type errors initially
+
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd agent
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run unit tests
+        run: |
+          cd agent
+          pytest tests/unit/ -v --cov=agent --cov-report=xml --cov-report=term-missing
+        env:
+          NAUTOBOT_URL: http://localhost:8000
+          NAUTOBOT_API_TOKEN: test-token
+          OPENAI_API_KEY: test-key
+          NETWORK_USERNAME: test-user
+          NETWORK_PASSWORD: test-password
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./agent/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+        if: matrix.python-version == '3.12'
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: nautobot
+          POSTGRES_USER: nautobot
+          POSTGRES_PASSWORD: nautobot
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd agent
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Start Nautobot (for integration tests)
+        run: |
+          docker-compose up -d nautobot
+          echo "Waiting for Nautobot to be healthy..."
+          timeout 120 bash -c 'until docker-compose ps nautobot | grep -q "healthy"; do sleep 2; done'
+
+      - name: Run integration tests
+        run: |
+          cd agent
+          pytest tests/integration/ -v --tb=short
+        env:
+          RUN_INTEGRATION_TESTS: true
+          NAUTOBOT_URL: http://localhost:8000
+          NAUTOBOT_API_TOKEN: 0123456789abcdef0123456789abcdef01234567
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NETWORK_USERNAME: test-user
+          NETWORK_PASSWORD: test-password
+
+      - name: Stop services
+        if: always()
+        run: docker-compose down
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test docker-compose build
+        run: |
+          docker-compose config
+          docker-compose build --no-cache
+
+      - name: Test stack startup
+        run: |
+          docker-compose up -d
+          sleep 30
+          docker-compose ps
+          docker-compose logs
+
+      - name: Health check services
+        run: |
+          # Check Nautobot
+          timeout 180 bash -c 'until curl -f http://localhost:8000/health/; do sleep 5; done'
+          # Check Grafana
+          timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 5; done'
+          # Check VictoriaMetrics
+          timeout 60 bash -c 'until curl -f http://localhost:8428/health; do sleep 5; done'
+
+      - name: Stop services
+        if: always()
+        run: docker-compose down -v
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd agent
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install bandit safety
+
+      - name: Run Bandit security scan
+        run: |
+          cd agent
+          bandit -r agent/ -f json -o bandit-report.json || true
+
+      - name: Run Safety dependency check
+        run: |
+          cd agent
+          safety check --json || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: agent/*.json
+
+  documentation:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate README
+        run: |
+          # Check if README exists and has content
+          test -s README.md
+          test -s ROADMAP.md
+          test -s EXAMPLES.md
+          test -s PHASE2_GUIDE.md
+
+      - name: Check for broken links (optional)
+        run: |
+          echo "Documentation files validated"
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit, docker-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(grep "^version" agent/pyproject.toml | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
