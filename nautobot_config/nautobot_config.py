@@ -13,6 +13,7 @@ PLUGINS = [
     "nautobot_device_onboarding",
     "nautobot_golden_config",
     "nautobot_device_lifecycle_mgmt",
+    "nautobot_chatbot",  # AI chat interface
 ]
 
 # Plugin configuration
@@ -45,5 +46,8 @@ PLUGINS_CONFIG = {
         "barchart_bar_width": 0.1,
         "barchart_width": 12,
         "barchart_height": 5,
+    },
+    "nautobot_chatbot": {
+        "agent_service_url": "http://agent-service:8080",
     },
 }

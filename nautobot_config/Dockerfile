@@ -24,6 +24,9 @@ RUN poetry config virtualenvs.create false && \
 # Copy Nautobot configuration
 COPY nautobot_config.py /opt/nautobot/
 
+# Copy chatbot plugin
+COPY nautobot_chatbot/ /opt/nautobot/nautobot_chatbot/
+
 # Ensure permissions are correct
 RUN chown -R nautobot:nautobot /opt/nautobot
 
