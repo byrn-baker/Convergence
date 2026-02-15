@@ -9,8 +9,9 @@ This guide shows you how to configure pfSense to send logs to the Convergence mo
 The Convergence platform now includes:
 
 - **Loki**: Log aggregation and storage system (port 3100)
-- **OTEL Collector**: Syslog receiver listening on UDP/TCP port 514
+- **Promtail**: Purpose-built log collector listening on UDP/TCP port 514
 - **Grafana**: Loki datasource configured and ready to query logs
+- **OTELCOL**: Handles metrics (SNMP) with Nautobot enrichment
 
 ## 📋 pfSense Configuration
 
@@ -184,9 +185,10 @@ sum by (src_ip) (count_over_time({job="syslog"} |= "block" | regexp "SRC=(?P<src
 
 ### Logs Not Appearing in Loki
 
-1. **Check OTEL Collector is receiving syslogs:**
+1. **Check Promtail is receiving syslogs:**
    ```bash
-   docker logs convergence-otel-collector --tail 50 | grep syslog
+   docker logs convergence-promtail --tail 50 | grep -i error
+   curl http://localhost:9080/metrics | grep promtail_sent_entries_total
    ```
 
 2. **Verify Loki is healthy:**
@@ -203,9 +205,10 @@ sum by (src_ip) (count_over_time({job="syslog"} |= "block" | regexp "SRC=(?P<src
    - pfSense needs to be able to reach Docker host on port 514/UDP
    - Check if any firewall rules on Docker host block UDP 514
 
-5. **Check syslog receiver is listening:**
+5. **Check Promtail syslog receiver is listening:**
    ```bash
-   docker exec convergence-otel-collector netstat -uln | grep 514
+   docker port convergence-promtail
+   ss -tulnp | grep :514
    ```
 
 ### Logs Delayed or Missing
@@ -225,7 +228,7 @@ sum by (src_ip) (count_over_time({job="syslog"} |= "block" | regexp "SRC=(?P<src
 
 - **LogQL Documentation**: https://grafana.com/docs/loki/latest/logql/
 - **pfSense Logging**: https://docs.netgate.com/pfsense/en/latest/monitoring/logs/
-- **OTEL Syslog Receiver**: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/syslogreceiver
+- **Promtail Syslog**: https://grafana.com/docs/loki/latest/send-data/promtail/scraping/#syslog-receiver
 
 ## 🔐 Security Best Practices
 

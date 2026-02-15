@@ -20,14 +20,6 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-  # Syslog receiver for network device logs
-  syslog:
-    tcp:
-      listen_address: "0.0.0.0:514"
-    udp:
-      listen_address: "0.0.0.0:514"
-    protocol: rfc5424
-
   # Prometheus receiver for self-monitoring
   prometheus:
     config:
@@ -289,12 +281,6 @@ exporters:
     tls:
       insecure: true
 
-  # OTLP HTTP exporter for sending logs to Loki
-  otlp_http/loki:
-    endpoint: "http://loki:3100/otlp"
-    tls:
-      insecure: true
-
   # Debug exporter for troubleshooting
   debug:
     verbosity: detailed
@@ -329,11 +315,11 @@ service:
       processors: [memory_limiter, resource, batch]
       exporters: [prometheusremotewrite, debug]
 
-    # Logs pipeline
+    # Logs pipeline (OTLP only - syslogs handled by Promtail)
     logs:
-      receivers: [otlp, syslog]
+      receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp_http/loki, debug]
+      exporters: [debug]
 
     # Traces pipeline (minimal)
     traces:

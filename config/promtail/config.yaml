@@ -1,0 +1,54 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Syslog receiver for network devices (RFC 3164 and RFC 5424)
+  - job_name: syslog
+    syslog:
+      listen_address: 0.0.0.0:514
+      listen_protocol: tcp
+      idle_timeout: 60s
+      label_structured_data: yes
+      use_rfc5424_message: false  # Accept both RFC 3164 and RFC 5424
+      labels:
+        job: "syslog"
+    relabel_configs:
+      # Extract hostname from syslog message
+      - source_labels: ['__syslog_message_hostname']
+        target_label: 'host'
+      # Extract app name
+      - source_labels: ['__syslog_message_app_name']
+        target_label: 'app'
+      # Extract facility
+      - source_labels: ['__syslog_message_facility']
+        target_label: 'facility'
+      # Extract severity
+      - source_labels: ['__syslog_message_severity']
+        target_label: 'severity'
+
+  # UDP syslog receiver
+  - job_name: syslog-udp
+    syslog:
+      listen_address: 0.0.0.0:514
+      listen_protocol: udp
+      label_structured_data: yes
+      use_rfc5424_message: false  # Accept both RFC 3164 and RFC 5424
+      labels:
+        job: "syslog"
+        protocol: "udp"
+    relabel_configs:
+      - source_labels: ['__syslog_message_hostname']
+        target_label: 'host'
+      - source_labels: ['__syslog_message_app_name']
+        target_label: 'app'
+      - source_labels: ['__syslog_message_facility']
+        target_label: 'facility'
+      - source_labels: ['__syslog_message_severity']
+        target_label: 'severity'

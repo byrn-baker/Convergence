@@ -15,8 +15,6 @@ services:
       - "8888:8888"     # Prometheus metrics (self-monitoring)
       - "13133:13133"   # Health check
       # Network telemetry receivers
-      - "514:514/udp"   # Syslog UDP
-      - "514:514/tcp"   # Syslog TCP
       - "162:162/udp"   # SNMP traps
       - "9000:9000"     # gNMI
       - "6030:6030"     # gRPC telemetry (Cisco MDT)
@@ -102,6 +100,23 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Promtail - Log collector for Loki
+  promtail:
+    image: grafana/promtail:latest
+    container_name: convergence-promtail
+    command: -config.file=/etc/promtail/config.yaml
+    volumes:
+      - ./config/promtail:/etc/promtail:ro
+    ports:
+      - "514:514/udp"   # Syslog UDP
+      - "514:514/tcp"   # Syslog TCP
+      - "9080:9080"     # Promtail HTTP metrics
+    networks:
+      - convergence
+    depends_on:
+      - loki
+    restart: unless-stopped
 
   # Redis - Caching and queue (optional, for future extensions)
   redis:
