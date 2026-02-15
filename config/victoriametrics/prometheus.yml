@@ -1,0 +1,32 @@
+# VictoriaMetrics Prometheus Configuration
+# This configuration allows VictoriaMetrics to scrape metrics if needed
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  external_labels:
+    platform: 'convergence'
+    environment: 'production'
+
+# Scrape configurations
+scrape_configs:
+  # Self-monitoring of VictoriaMetrics
+  - job_name: 'victoriametrics'
+    static_configs:
+      - targets: ['localhost:8428']
+        labels:
+          service: 'victoriametrics'
+
+  # OTEL Collector self-monitoring
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888']
+        labels:
+          service: 'otel-collector'
+
+  # Grafana metrics
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: 'grafana'

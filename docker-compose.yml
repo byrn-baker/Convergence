@@ -1,187 +1,137 @@
 services:
-  # PostgreSQL - Database for Nautobot
-  postgres:
-    image: postgres:15-alpine
-    container_name: convergence-postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-nautobot}
-      POSTGRES_USER: ${POSTGRES_USER:-nautobot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nautobot}
+  # OpenTelemetry Collector - Telemetry convergence layer
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: convergence-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - convergence
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nautobot}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis - Cache for Nautobot
-  redis:
-    image: redis:7-alpine
-    container_name: convergence-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - convergence
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Nautobot - Source of Truth
-  nautobot:
-    build:
-      context: ./nautobot_config
-      dockerfile: Dockerfile
-      args:
-        NAUTOBOT_VERSION: 3.0.5-py3.12
-    image: convergence-nautobot:latest
-    container_name: convergence-nautobot
-    user: "0:0"  # Run as root to fix WSL2 volume permission issues
-    environment:
-      NAUTOBOT_DB_ENGINE: django.db.backends.postgresql
-      NAUTOBOT_DB_HOST: postgres
-      NAUTOBOT_DB_PORT: 5432
-      NAUTOBOT_DB_NAME: ${POSTGRES_DB:-nautobot}
-      NAUTOBOT_DB_USER: ${POSTGRES_USER:-nautobot}
-      NAUTOBOT_DB_PASSWORD: ${POSTGRES_PASSWORD:-nautobot}
-      NAUTOBOT_REDIS_HOST: redis
-      NAUTOBOT_REDIS_PORT: 6379
-      NAUTOBOT_SECRET_KEY: ${NAUTOBOT_SECRET_KEY:-insecure-secret-key-change-me}
-      NAUTOBOT_ALLOWED_HOSTS: "*"
-      NAUTOBOT_CREATE_SUPERUSER: "true"
-      NAUTOBOT_SUPERUSER_API_TOKEN: ${NAUTOBOT_API_TOKEN:-0123456789abcdef0123456789abcdef01234567}
-      NAUTOBOT_SUPERUSER_NAME: ${NAUTOBOT_SUPERUSER_NAME:-admin}
-      NAUTOBOT_SUPERUSER_EMAIL: ${NAUTOBOT_SUPERUSER_EMAIL:-admin@example.com}
-      NAUTOBOT_SUPERUSER_PASSWORD: ${NAUTOBOT_SUPERUSER_PASSWORD:-admin}
-      # Poetry and plugin installation
-      NAUTOBOT_ROOT: /opt/nautobot
-      NAUTOBOT_CONFIG: /opt/nautobot/nautobot_config.py
+      - ./config/otel-collector:/etc/otelcol:ro
+      - ./data/otelcol:/data
     ports:
-      - "8000:8080"
-    volumes:
-      - nautobot_media:/opt/nautobot/media
-      - nautobot_git:/opt/nautobot/git
-    networks:
-      - convergence
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # Agent Service - AI-powered network automation API
-  agent-service:
-    build:
-      context: ./agent
-      dockerfile: Dockerfile.service
-    image: convergence-agent-service:latest
-    container_name: convergence-agent-service
+      # OTLP receivers
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+      # Legacy receivers
+      - "8888:8888"     # Prometheus metrics (self-monitoring)
+      - "13133:13133"   # Health check
+      # Network telemetry receivers
+      - "514:514/udp"   # Syslog UDP
+      - "514:514/tcp"   # Syslog TCP
+      - "162:162/udp"   # SNMP traps
+      - "9000:9000"     # gNMI
+      - "6030:6030"     # gRPC telemetry (Cisco MDT)
     environment:
-      - NAUTOBOT_URL=http://nautobot:8080
-      - NAUTOBOT_API_TOKEN=${NAUTOBOT_API_TOKEN:-0123456789abcdef0123456789abcdef01234567}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - AGENT_MODEL=${AGENT_MODEL:-claude-3-haiku-20240307}
-      - AGENT_TEMPERATURE=${AGENT_TEMPERATURE:-0.1}
-      - AGENT_MAX_ITERATIONS=${AGENT_MAX_ITERATIONS:-10}
       - NETWORK_USERNAME=${NETWORK_USERNAME:-admin}
-      - NETWORK_PASSWORD=${NETWORK_PASSWORD:-}
-      - NETWORK_ENABLE_PASSWORD=${NETWORK_ENABLE_PASSWORD:-}
-    ports:
-      - "8080:8080"
+      - NETWORK_PASSWORD=${NETWORK_PASSWORD:-admin}
+      - SNMP_COMMUNITY=${SNMP_COMMUNITY:-public}
     networks:
       - convergence
-    depends_on:
-      nautobot:
-        condition: service_healthy
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8080/health')"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
-  # VictoriaMetrics - Metrics Storage
+  # VictoriaMetrics - High-performance time-series database
   victoriametrics:
     image: victoriametrics/victoria-metrics:latest
     container_name: convergence-victoriametrics
     command:
-      - '--storageDataPath=/victoria-metrics-data'
-      - '--httpListenAddr=:8428'
-      - '--retentionPeriod=12'  # months
-    ports:
-      - "8428:8428"
+      - "--storageDataPath=/storage"
+      - "--retentionPeriod=${VM_RETENTION_PERIOD:-90d}"
+      - "--httpListenAddr=:8428"
+      - "--promscrape.config=/etc/victoriametrics/prometheus.yml"
     volumes:
-      - victoriametrics_data:/victoria-metrics-data
+      - ./config/victoriametrics:/etc/victoriametrics:ro
+      - victoriametrics-data:/storage
+    ports:
+      - "8428:8428"     # HTTP API
     networks:
       - convergence
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8428/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8428/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Grafana - Visualization
+  # Grafana - Visualization and dashboards
   grafana:
     image: grafana/grafana:latest
     container_name: convergence-grafana
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"     # Web UI
     environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_INSTALL_PLUGINS: ""
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=
     networks:
       - convergence
     depends_on:
       - victoriametrics
+      - loki
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Vector - Telemetry Pipeline
-  vector:
-    image: timberio/vector:latest-alpine
-    container_name: convergence-vector
-    ports:
-      - "8686:8686"  # Vector API
-      - "514:514/udp"  # Syslog
-      - "162:162/udp"  # SNMP traps
-      - "9000:9000"  # gRPC (for gNMI/streaming telemetry)
+  # Loki - Log aggregation system
+  loki:
+    image: grafana/loki:latest
+    container_name: convergence-loki
+    command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./vector/vector.toml:/etc/vector/vector.toml:ro
-      - vector_data:/var/lib/vector
+      - ./config/loki:/etc/loki:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"     # HTTP API
     networks:
       - convergence
-    depends_on:
-      - victoriametrics
-    command: ["--config", "/etc/vector/vector.toml"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis - Caching and queue (optional, for future extensions)
+  redis:
+    image: redis:7-alpine
+    container_name: convergence-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - convergence
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   convergence:
+    name: convergence-network
     driver: bridge
 
 volumes:
-  postgres_data:
-  redis_data:
-  nautobot_media:
-  nautobot_git:
-  victoriametrics_data:
-  grafana_data:
-  vector_data:
+  victoriametrics-data:
+    name: convergence-victoriametrics-data
+  grafana-data:
+    name: convergence-grafana-data
+  loki-data:
+    name: convergence-loki-data
+  redis-data:
+    name: convergence-redis-data

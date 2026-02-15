@@ -1,0 +1,51 @@
+# Grafana Dashboard Provisioning Configuration
+apiVersion: 1
+
+providers:
+  # Unified dashboards (cross-vendor)
+  - name: 'Convergence Unified'
+    orgId: 1
+    folder: 'Convergence - Unified'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/unified
+      foldersFromFilesStructure: false
+
+  # Cisco-specific dashboards
+  - name: 'Convergence Cisco'
+    orgId: 1
+    folder: 'Convergence - Cisco'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/cisco
+      foldersFromFilesStructure: false
+
+  # Juniper-specific dashboards
+  - name: 'Convergence Juniper'
+    orgId: 1
+    folder: 'Convergence - Juniper'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/juniper
+      foldersFromFilesStructure: false
+
+  # Arista-specific dashboards
+  - name: 'Convergence Arista'
+    orgId: 1
+    folder: 'Convergence - Arista'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/arista
+      foldersFromFilesStructure: false

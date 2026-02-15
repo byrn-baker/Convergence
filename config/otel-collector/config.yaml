@@ -1,0 +1,356 @@
+# Convergence OpenTelemetry Collector Configuration
+# Simplified version - tested format from official docs
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  # OpenTelemetry Protocol receivers
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Syslog receiver for network device logs
+  syslog:
+    tcp:
+      listen_address: "0.0.0.0:514"
+    udp:
+      listen_address: "0.0.0.0:514"
+    protocol: rfc5424
+
+  # Prometheus receiver for self-monitoring
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['localhost:8888']
+              labels:
+                service: 'otel-collector'
+
+  # SNMP receivers - Auto-generated from Nautobot
+  # Device metadata (hostname, site, vendor, model, role) added via attributes processors
+
+  # HomeSwitch01 - 192.168.3.2
+  snmp/homeswitch01:
+    collection_interval: 60s
+    endpoint: "udp://192.168.3.2:161"
+    version: v2c
+    community: ${env:SNMP_COMMUNITY}
+    attributes:
+      interface.name:
+        oid: "1.3.6.1.2.1.2.2.1.2"
+        indexed_value_prefix: ""
+      interface.description:
+        oid: "1.3.6.1.2.1.31.1.1.1.18"
+        indexed_value_prefix: ""
+    metrics:
+      system.uptime:
+        unit: "s"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.2.1.1.3.0"
+      interface.in.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.10"
+            attributes:
+              - name: interface.name
+      interface.out.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.16"
+            attributes:
+              - name: interface.name
+      interface.in.errors:
+        unit: "1"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.14"
+            attributes:
+              - name: interface.name
+
+  # HomeSwitch02 - 192.168.3.3
+  snmp/homeswitch02:
+    collection_interval: 60s
+    endpoint: "udp://192.168.3.3:161"
+    version: v2c
+    community: ${env:SNMP_COMMUNITY}
+    attributes:
+      interface.name:
+        oid: "1.3.6.1.2.1.2.2.1.2"
+        indexed_value_prefix: ""
+      interface.description:
+        oid: "1.3.6.1.2.1.31.1.1.1.18"
+        indexed_value_prefix: ""
+    metrics:
+      system.uptime:
+        unit: "s"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.2.1.1.3.0"
+      interface.in.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.10"
+            attributes:
+              - name: interface.name
+      interface.out.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.16"
+            attributes:
+              - name: interface.name
+      interface.in.errors:
+        unit: "1"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.14"
+            attributes:
+              - name: interface.name
+
+  # pfSense-FW01 - 192.168.100.1
+  snmp/pfsense-fw01:
+    collection_interval: 60s
+    endpoint: "udp://192.168.100.1:161"
+    version: v2c
+    community: ${env:SNMP_COMMUNITY}
+    attributes:
+      interface.name:
+        oid: "1.3.6.1.2.1.2.2.1.2"
+        indexed_value_prefix: ""
+      interface.description:
+        oid: "1.3.6.1.2.1.31.1.1.1.18"
+        indexed_value_prefix: ""
+    metrics:
+      system.uptime:
+        unit: "s"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.2.1.1.3.0"
+      interface.in.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.10"
+            attributes:
+              - name: interface.name
+      interface.out.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.16"
+            attributes:
+              - name: interface.name
+      interface.in.errors:
+        unit: "1"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.14"
+            attributes:
+              - name: interface.name
+
+processors:
+  # Memory limiter prevents OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # Batch processor for efficiency
+  batch:
+    send_batch_size: 1024
+    timeout: 10s
+    send_batch_max_size: 2048
+
+  # Add platform and device labels to metrics
+  resource:
+    attributes:
+      - key: platform
+        value: "convergence"
+        action: insert
+
+  # Add Nautobot device metadata to SNMP metrics
+  # HomeSwitch01 metadata
+  attributes/homeswitch01:
+    actions:
+      - key: device.name
+        value: "HomeSwitch01"
+        action: insert
+      - key: device.ip
+        value: "192.168.3.2"
+        action: insert
+      - key: device.vendor
+        value: "Cisco"
+        action: insert
+      - key: device.model
+        value: "WS-C3850-48P"
+        action: insert
+      - key: device.role
+        value: "home_switch"
+        action: insert
+      - key: device.site
+        value: "House"
+        action: insert
+
+  # HomeSwitch02 metadata
+  attributes/homeswitch02:
+    actions:
+      - key: device.name
+        value: "HomeSwitch02"
+        action: insert
+      - key: device.ip
+        value: "192.168.3.3"
+        action: insert
+      - key: device.vendor
+        value: "Cisco"
+        action: insert
+      - key: device.model
+        value: "WS-C3850-48P"
+        action: insert
+      - key: device.role
+        value: "home_switch"
+        action: insert
+      - key: device.site
+        value: "House"
+        action: insert
+
+  # pfSense-FW01 metadata
+  attributes/pfsense-fw01:
+    actions:
+      - key: device.name
+        value: "pfSense-FW01"
+        action: insert
+      - key: device.ip
+        value: "192.168.100.1"
+        action: insert
+      - key: device.vendor
+        value: "Netgate"
+        action: insert
+      - key: device.model
+        value: "8200 Max PFSense+ Security Gateway"
+        action: insert
+      - key: device.role
+        value: "firewall"
+        action: insert
+      - key: device.site
+        value: "House"
+        action: insert
+
+exporters:
+  # Prometheus Remote Write to VictoriaMetrics
+  prometheusremotewrite:
+    endpoint: "http://victoriametrics:8428/api/v1/write"
+    tls:
+      insecure: true
+
+  # OTLP HTTP exporter for sending logs to Loki
+  otlp_http/loki:
+    endpoint: "http://loki:3100/otlp"
+    tls:
+      insecure: true
+
+  # Debug exporter for troubleshooting
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  extensions: [health_check, pprof, zpages]
+
+  pipelines:
+    # Metrics pipeline - HomeSwitch01
+    metrics/homeswitch01:
+      receivers: [snmp/homeswitch01]
+      processors: [memory_limiter, attributes/homeswitch01, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
+    # Metrics pipeline - HomeSwitch02
+    metrics/homeswitch02:
+      receivers: [snmp/homeswitch02]
+      processors: [memory_limiter, attributes/homeswitch02, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
+    # Metrics pipeline - pfSense
+    metrics/pfsense-fw01:
+      receivers: [snmp/pfsense-fw01]
+      processors: [memory_limiter, attributes/pfsense-fw01, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
+    # Metrics pipeline - General (OTLP and Prometheus)
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp, syslog]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/loki, debug]
+
+    # Traces pipeline (minimal)
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+
+  # Self-monitoring configuration
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      level: detailed
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: "0.0.0.0"
+                port: 8888

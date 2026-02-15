@@ -1,0 +1,174 @@
+# Cisco Device Configuration for OTEL Collector
+# This file contains device-specific configurations for Cisco equipment
+
+# List of Cisco devices to monitor
+# Add your devices here in the format below
+
+devices:
+  # Example Cisco IOS-XE Router
+  - name: "cisco-rtr-01"
+    endpoint: "192.168.1.1"
+    snmp:
+      version: "v2c"
+      community: "${SNMP_COMMUNITY}"
+      port: 161
+    telemetry:
+      enabled: true
+      protocol: "grpc"  # Model-Driven Telemetry (MDT)
+      port: 6030
+    syslog:
+      enabled: true
+    labels:
+      device_type: "router"
+      vendor: "cisco"
+      platform: "ios-xe"
+      site: "datacenter-1"
+      role: "edge"
+
+  # Example Cisco IOS-XR Router
+  - name: "cisco-xr-core-01"
+    endpoint: "192.168.1.2"
+    snmp:
+      version: "v3"
+      username: "${SNMP_V3_USERNAME}"
+      auth_password: "${SNMP_V3_PASSWORD}"
+      priv_password: "${SNMP_V3_PRIV_PASSWORD}"
+      auth_protocol: "SHA"
+      priv_protocol: "AES"
+      port: 161
+    telemetry:
+      enabled: true
+      protocol: "grpc"
+      port: 6030
+    syslog:
+      enabled: true
+    labels:
+      device_type: "router"
+      vendor: "cisco"
+      platform: "ios-xr"
+      site: "datacenter-1"
+      role: "core"
+
+  # Example Cisco Nexus Switch
+  - name: "cisco-nxos-sw-01"
+    endpoint: "192.168.1.10"
+    snmp:
+      version: "v2c"
+      community: "${SNMP_COMMUNITY}"
+      port: 161
+    telemetry:
+      enabled: true
+      protocol: "grpc"
+      port: 50051
+    syslog:
+      enabled: true
+    labels:
+      device_type: "switch"
+      vendor: "cisco"
+      platform: "nxos"
+      site: "datacenter-1"
+      role: "access"
+
+# Cisco-specific OID mappings
+oids:
+  # System information
+  system:
+    uptime: "1.3.6.1.2.1.1.3.0"
+    name: "1.3.6.1.2.1.1.5.0"
+    location: "1.3.6.1.2.1.1.6.0"
+    description: "1.3.6.1.2.1.1.1.0"
+
+  # Interface statistics (IF-MIB)
+  interface:
+    index: "1.3.6.1.2.1.2.2.1.1"
+    description: "1.3.6.1.2.1.2.2.1.2"
+    type: "1.3.6.1.2.1.2.2.1.3"
+    mtu: "1.3.6.1.2.1.2.2.1.4"
+    speed: "1.3.6.1.2.1.2.2.1.5"
+    admin_status: "1.3.6.1.2.1.2.2.1.7"
+    oper_status: "1.3.6.1.2.1.2.2.1.8"
+    in_octets: "1.3.6.1.2.1.2.2.1.10"
+    in_unicast_pkts: "1.3.6.1.2.1.2.2.1.11"
+    in_errors: "1.3.6.1.2.1.2.2.1.14"
+    in_discards: "1.3.6.1.2.1.2.2.1.13"
+    out_octets: "1.3.6.1.2.1.2.2.1.16"
+    out_unicast_pkts: "1.3.6.1.2.1.2.2.1.17"
+    out_errors: "1.3.6.1.2.1.2.2.1.20"
+    out_discards: "1.3.6.1.2.1.2.2.1.19"
+
+  # Cisco-specific CPU (CISCO-PROCESS-MIB)
+  cpu:
+    5sec: "1.3.6.1.4.1.9.9.109.1.1.1.1.3"
+    1min: "1.3.6.1.4.1.9.9.109.1.1.1.1.4"
+    5min: "1.3.6.1.4.1.9.9.109.1.1.1.1.5"
+    interrupt: "1.3.6.1.4.1.9.9.109.1.1.1.1.7"
+
+  # Cisco-specific Memory (CISCO-MEMORY-POOL-MIB)
+  memory:
+    pool_name: "1.3.6.1.4.1.9.9.48.1.1.1.2"
+    used: "1.3.6.1.4.1.9.9.48.1.1.1.5"
+    free: "1.3.6.1.4.1.9.9.48.1.1.1.6"
+    largest_free: "1.3.6.1.4.1.9.9.48.1.1.1.7"
+
+  # Environmental sensors (CISCO-ENTITY-SENSOR-MIB)
+  sensors:
+    type: "1.3.6.1.4.1.9.9.91.1.1.1.1.1"
+    scale: "1.3.6.1.4.1.9.9.91.1.1.1.1.2"
+    precision: "1.3.6.1.4.1.9.9.91.1.1.1.1.3"
+    value: "1.3.6.1.4.1.9.9.91.1.1.1.1.4"
+    status: "1.3.6.1.4.1.9.9.91.1.1.1.1.5"
+
+  # BGP (BGP4-MIB)
+  bgp:
+    peer_state: "1.3.6.1.2.1.15.3.1.2"
+    peer_admin_status: "1.3.6.1.2.1.15.3.1.3"
+    peer_established_time: "1.3.6.1.2.1.15.3.1.16"
+    peer_in_updates: "1.3.6.1.2.1.15.3.1.10"
+    peer_out_updates: "1.3.6.1.2.1.15.3.1.11"
+
+# Cisco syslog patterns for parsing
+syslog_patterns:
+  # Interface up/down
+  - pattern: '%LINK-3-UPDOWN: Interface (?P<interface>[^,]+), changed state to (?P<state>\w+)'
+    severity: "warning"
+    category: "interface_status"
+
+  - pattern: '%LINEPROTO-5-UPDOWN: Line protocol on Interface (?P<interface>[^,]+), changed state to (?P<state>\w+)'
+    severity: "notice"
+    category: "interface_status"
+
+  # BGP neighbor up/down
+  - pattern: '%BGP-5-ADJCHANGE: neighbor (?P<neighbor>\S+) (?P<state>Up|Down)'
+    severity: "notice"
+    category: "bgp"
+
+  # Configuration changes
+  - pattern: '%SYS-5-CONFIG_I: Configured from (?P<source>\S+) by (?P<user>\S+)'
+    severity: "notice"
+    category: "configuration"
+
+  # Authentication failures
+  - pattern: '%SEC_LOGIN-5-LOGIN_SUCCESS: Login Success \[user: (?P<user>\S+)\]'
+    severity: "notice"
+    category: "authentication"
+
+  - pattern: '%SEC_LOGIN-4-LOGIN_FAILED: Login failed \[user: (?P<user>\S+)\]'
+    severity: "warning"
+    category: "authentication"
+
+# Model-Driven Telemetry (MDT) subscription paths for IOS-XE/XR
+mdt_subscriptions:
+  - name: "interfaces"
+    path: "Cisco-IOS-XE-interfaces-oper:interfaces/interface"
+    interval: 30
+    encoding: "kvgpb"
+
+  - name: "cpu_memory"
+    path: "Cisco-IOS-XE-process-cpu-oper:cpu-usage/cpu-utilization"
+    interval: 30
+    encoding: "kvgpb"
+
+  - name: "bgp_neighbors"
+    path: "Cisco-IOS-XE-bgp-oper:bgp-state-data/neighbors"
+    interval: 60
+    encoding: "kvgpb"

@@ -1,0 +1,287 @@
+# Arista Device Configuration for OTEL Collector
+# This file contains device-specific configurations for Arista EOS equipment
+
+# List of Arista devices to monitor
+devices:
+  # Example Arista Spine Switch
+  - name: "arista-spine-01"
+    endpoint: "192.168.3.1"
+    snmp:
+      version: "v2c"
+      community: "${SNMP_COMMUNITY}"
+      port: 161
+    telemetry:
+      enabled: true
+      protocol: "gnmi"  # gNMI streaming
+      port: 6030
+    eapi:
+      enabled: true
+      port: 443
+      protocol: "https"
+    syslog:
+      enabled: true
+    labels:
+      device_type: "switch"
+      vendor: "arista"
+      platform: "eos"
+      model: "7280"
+      site: "datacenter-1"
+      role: "spine"
+      fabric: "leaf-spine"
+
+  # Example Arista Leaf Switch
+  - name: "arista-leaf-01"
+    endpoint: "192.168.3.10"
+    snmp:
+      version: "v3"
+      username: "${SNMP_V3_USERNAME}"
+      auth_password: "${SNMP_V3_PASSWORD}"
+      priv_password: "${SNMP_V3_PRIV_PASSWORD}"
+      auth_protocol: "SHA"
+      priv_protocol: "AES"
+      port: 161
+    telemetry:
+      enabled: true
+      protocol: "gnmi"
+      port: 6030
+    eapi:
+      enabled: true
+      port: 443
+      protocol: "https"
+    syslog:
+      enabled: true
+    labels:
+      device_type: "switch"
+      vendor: "arista"
+      platform: "eos"
+      model: "7050"
+      site: "datacenter-1"
+      role: "leaf"
+      fabric: "leaf-spine"
+
+  # Example Arista Border Leaf
+  - name: "arista-border-01"
+    endpoint: "192.168.3.20"
+    snmp:
+      version: "v2c"
+      community: "${SNMP_COMMUNITY}"
+      port: 161
+    telemetry:
+      enabled: true
+      protocol: "gnmi"
+      port: 6030
+    eapi:
+      enabled: true
+      port: 443
+      protocol: "https"
+    syslog:
+      enabled: true
+    labels:
+      device_type: "switch"
+      vendor: "arista"
+      platform: "eos"
+      model: "7050"
+      site: "datacenter-1"
+      role: "border-leaf"
+      fabric: "leaf-spine"
+
+# Arista-specific OID mappings
+oids:
+  # System information (standard MIB-II)
+  system:
+    uptime: "1.3.6.1.2.1.1.3.0"
+    name: "1.3.6.1.2.1.1.5.0"
+    location: "1.3.6.1.2.1.1.6.0"
+    description: "1.3.6.1.2.1.1.1.0"
+
+  # Interface statistics (IF-MIB - standard)
+  interface:
+    index: "1.3.6.1.2.1.2.2.1.1"
+    description: "1.3.6.1.2.1.2.2.1.2"
+    type: "1.3.6.1.2.1.2.2.1.3"
+    mtu: "1.3.6.1.2.1.2.2.1.4"
+    speed: "1.3.6.1.2.1.2.2.1.5"
+    admin_status: "1.3.6.1.2.1.2.2.1.7"
+    oper_status: "1.3.6.1.2.1.2.2.1.8"
+    in_octets: "1.3.6.1.2.1.2.2.1.10"
+    in_unicast_pkts: "1.3.6.1.2.1.2.2.1.11"
+    in_errors: "1.3.6.1.2.1.2.2.1.14"
+    in_discards: "1.3.6.1.2.1.2.2.1.13"
+    out_octets: "1.3.6.1.2.1.2.2.1.16"
+    out_unicast_pkts: "1.3.6.1.2.1.2.2.1.17"
+    out_errors: "1.3.6.1.2.1.2.2.1.20"
+    out_discards: "1.3.6.1.2.1.2.2.1.19"
+    # High capacity counters (64-bit)
+    hc_in_octets: "1.3.6.1.2.1.31.1.1.1.6"
+    hc_out_octets: "1.3.6.1.2.1.31.1.1.1.10"
+
+  # CPU utilization (HOST-RESOURCES-MIB)
+  cpu:
+    load_1min: "1.3.6.1.2.1.25.3.3.1.2"
+    processor_load: "1.3.6.1.2.1.25.3.3.1.2"
+
+  # Memory utilization (HOST-RESOURCES-MIB)
+  memory:
+    total: "1.3.6.1.2.1.25.2.3.1.5"
+    used: "1.3.6.1.2.1.25.2.3.1.6"
+
+  # Arista-specific (ARISTA-SW-IP-FORWARDING-MIB)
+  arista:
+    sw_fwd_ip_stats_pkts_routed: "1.3.6.1.4.1.30065.3.15.1.1.1"
+    sw_fwd_ip_stats_pkts_consumed: "1.3.6.1.4.1.30065.3.15.1.1.2"
+    sw_fwd_ip_stats_pkts_to_cpu: "1.3.6.1.4.1.30065.3.15.1.1.3"
+
+  # BGP (standard BGP4-MIB)
+  bgp:
+    peer_state: "1.3.6.1.2.1.15.3.1.2"
+    peer_admin_status: "1.3.6.1.2.1.15.3.1.3"
+    peer_established_time: "1.3.6.1.2.1.15.3.1.16"
+    peer_in_updates: "1.3.6.1.2.1.15.3.1.10"
+    peer_out_updates: "1.3.6.1.2.1.15.3.1.11"
+
+  # VXLAN (Arista-specific)
+  vxlan:
+    flood_list: "1.3.6.1.4.1.30065.3.14.1.1"
+    unicast_flooding: "1.3.6.1.4.1.30065.3.14.1.2"
+
+# Arista syslog patterns for parsing
+syslog_patterns:
+  # Interface up/down
+  - pattern: '%LINEPROTO-5-UPDOWN: Line protocol on Interface (?P<interface>\S+), changed state to (?P<state>\w+)'
+    severity: "notice"
+    category: "interface_status"
+
+  - pattern: '%LINK-3-UPDOWN: Interface (?P<interface>\S+), changed state to (?P<state>\w+)'
+    severity: "warning"
+    category: "interface_status"
+
+  # BGP neighbor events
+  - pattern: '%BGP-5-ADJCHANGE: neighbor (?P<neighbor>\S+) (?P<action>Up|Down)'
+    severity: "notice"
+    category: "bgp"
+
+  - pattern: '%BGP-3-NOTIFICATION: (?P<direction>sent|received) to/from neighbor (?P<neighbor>\S+) (?P<code>\d+)/(?P<subcode>\d+) \((?P<reason>.*?)\)'
+    severity: "error"
+    category: "bgp"
+
+  # EVPN events
+  - pattern: '%EVPN-5-(?P<event>VXLAN_SYNC_COMPLETED|VXLAN_SYNC_START): (?P<detail>.*)'
+    severity: "notice"
+    category: "evpn"
+
+  # MLAG events
+  - pattern: '%MLAG-6-(?P<event>STATE_CHANGE): MLAG state changed to (?P<state>\w+)'
+    severity: "info"
+    category: "mlag"
+
+  - pattern: '%MLAG-4-PEER_(?P<state>DOWN|UP): MLAG peer (?P<peer>\S+) is (?P<status>\w+)'
+    severity: "warning"
+    category: "mlag"
+
+  # Configuration changes
+  - pattern: '%SYS-5-CONFIG_SESSION_(?P<action>ENTERED|EXITED|COMMIT_.*): User (?P<user>\S+)'
+    severity: "notice"
+    category: "configuration"
+
+  # Authentication
+  - pattern: '%SECURITY-5-SSH_(?P<action>CONNECT|DISCONNECT): User (?P<user>\S+) from (?P<source>\S+)'
+    severity: "notice"
+    category: "authentication"
+
+  - pattern: '%SECURITY-4-LOGIN_(?P<result>FAILED|SUCCESSFUL): Login (?P<status>\w+) for user (?P<user>\S+) from (?P<source>\S+)'
+    severity: "warning"
+    category: "authentication"
+
+  # Hardware events
+  - pattern: '%(?P<component>FRU|ENVMON|HARDWARE)-(?P<level>\d+)-(?P<event>.*?): (?P<detail>.*)'
+    severity: "critical"
+    category: "hardware"
+
+  # VXLAN/VTEP events
+  - pattern: '%VXLAN-5-(?P<event>VTEP_.*): (?P<detail>.*)'
+    severity: "notice"
+    category: "vxlan"
+
+# gNMI subscription paths for streaming telemetry
+gnmi_subscriptions:
+  # Interface statistics
+  - name: "interface_counters"
+    path: "/interfaces/interface[name=*]/state/counters"
+    mode: "SAMPLE"
+    sample_interval: 30
+    encoding: "JSON_IETF"
+
+  - name: "interface_status"
+    path: "/interfaces/interface[name=*]/state"
+    mode: "ON_CHANGE"
+    encoding: "JSON_IETF"
+
+  # System resources
+  - name: "cpu_utilization"
+    path: "/components/component[name=*]/cpu/utilization"
+    mode: "SAMPLE"
+    sample_interval: 60
+    encoding: "JSON_IETF"
+
+  - name: "memory_utilization"
+    path: "/components/component[name=*]/memory/utilization"
+    mode: "SAMPLE"
+    sample_interval: 60
+    encoding: "JSON_IETF"
+
+  # BGP neighbors
+  - name: "bgp_neighbors"
+    path: "/network-instances/network-instance[name=default]/protocols/protocol[name=BGP]/bgp/neighbors"
+    mode: "SAMPLE"
+    sample_interval: 60
+    encoding: "JSON_IETF"
+
+  # VXLAN tunnels
+  - name: "vxlan_vteps"
+    path: "/network-instances/network-instance[name=*]/vxlan/vteps"
+    mode: "ON_CHANGE"
+    encoding: "JSON_IETF"
+
+  # LLDP neighbors
+  - name: "lldp_neighbors"
+    path: "/lldp/interfaces/interface[name=*]/neighbors"
+    mode: "ON_CHANGE"
+    encoding: "JSON_IETF"
+
+# eAPI commands for enhanced telemetry
+eapi_commands:
+  # Show version
+  - name: "show_version"
+    command: "show version"
+    interval: 300
+    format: "json"
+
+  # Show interfaces
+  - name: "show_interfaces"
+    command: "show interfaces"
+    interval: 60
+    format: "json"
+
+  # Show BGP summary
+  - name: "show_bgp_summary"
+    command: "show ip bgp summary"
+    interval: 60
+    format: "json"
+
+  # Show VXLAN
+  - name: "show_vxlan"
+    command: "show vxlan vtep"
+    interval: 60
+    format: "json"
+
+  # Show MLAG
+  - name: "show_mlag"
+    command: "show mlag"
+    interval: 60
+    format: "json"
+
+  # Show EVPN
+  - name: "show_evpn"
+    command: "show bgp evpn summary"
+    interval: 60
+    format: "json"
