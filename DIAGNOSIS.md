@@ -85,5 +85,6 @@ scrape_configs:
 - `config/otel-collector/config.yaml` - Multiple exporter attempts
 - `config/loki/local-config.yaml` - Tested OTLP distributor config (reverted)
 
-## Commit Status
-✅ Major refactoring committed: "Refactor to monitoring-first architecture with OTELCOL"
+## Status
+✅ Logging pipeline operational with Promtail
+✅ Metrics pipeline operational with OTELCOL + Nautobot enrichment

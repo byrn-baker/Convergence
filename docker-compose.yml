@@ -103,7 +103,7 @@ services:
 
   # Promtail - Log collector for Loki
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.10
     container_name: convergence-promtail
     command: -config.file=/etc/promtail/config.yaml
     volumes:
