@@ -49,3 +49,15 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/arista
       foldersFromFilesStructure: false
+
+  # Security & Firewall dashboards
+  - name: 'Security'
+    orgId: 1
+    folder: 'Security'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

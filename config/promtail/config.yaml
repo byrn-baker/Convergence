@@ -9,39 +9,25 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # Syslog receiver - TCP (RFC 3164 BSD syslog)
-  - job_name: syslog
-    syslog:
-      listen_address: 0.0.0.0:514
-      listen_protocol: tcp
-      idle_timeout: 60s
-      use_incoming_timestamp: true
-      max_message_length: 8192
-      labels:
-        job: "syslog"
-        protocol: "tcp"
-    relabel_configs:
-      - source_labels: ['__syslog_message_hostname']
-        target_label: 'hostname'
-      - source_labels: ['__syslog_message_app_name']
-        target_label: 'app'
-      - source_labels: ['__syslog_message_severity']
-        target_label: 'severity'
-
-  # Syslog receiver - UDP (RFC 3164 BSD syslog)
-  - job_name: syslog-udp
-    syslog:
-      listen_address: 0.0.0.0:514
-      listen_protocol: udp
-      use_incoming_timestamp: true
-      max_message_length: 8192
-      labels:
-        job: "syslog"
-        protocol: "udp"
-    relabel_configs:
-      - source_labels: ['__syslog_message_hostname']
-        target_label: 'hostname'
-      - source_labels: ['__syslog_message_app_name']
-        target_label: 'app'
-      - source_labels: ['__syslog_message_severity']
-        target_label: 'severity'
+  # Tail syslog logs from OTEL Collector
+  - job_name: otel-syslog
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          __path__: /data/syslog/*.jsonl
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            body: body
+            appname: resourceLogs[0].scopeLogs[0].logRecords[0].attributes.appname
+            protocol: resourceLogs[0].scopeLogs[0].logRecords[0].attributes.protocol
+            facility: resourceLogs[0].scopeLogs[0].logRecords[0].attributes.facility
+      - labels:
+          appname:
+          protocol:
+          facility:
+      - output:
+          source: body

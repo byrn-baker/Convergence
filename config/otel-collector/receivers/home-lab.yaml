@@ -1,0 +1,219 @@
+receivers:
+snmp/homeswitch01:
+  attributes:
+    interface.description:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.31.1.1.1.18
+    interface.name:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.2.2.1.2
+  collection_interval: 60s
+  community: ${env:SNMP_COMMUNITY}
+  endpoint: udp://192.168.3.2:161
+  metrics:
+    interface.in.errors:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.14
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: '1'
+    interface.in.octets:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.10
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+    interface.out.octets:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.16
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+    system.uptime:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.2.1.1.3.0
+      unit: s
+  version: v2c
+snmp/homeswitch02:
+  attributes:
+    interface.description:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.31.1.1.1.18
+    interface.name:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.2.2.1.2
+  collection_interval: 60s
+  community: ${env:SNMP_COMMUNITY}
+  endpoint: udp://192.168.3.3:161
+  metrics:
+    interface.in.errors:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.14
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: '1'
+    interface.in.octets:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.10
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+    interface.out.octets:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.16
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+    system.uptime:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.2.1.1.3.0
+      unit: s
+  version: v2c
+snmp/pfsense-fw01:
+  attributes:
+    interface.description:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.31.1.1.1.18
+    interface.name:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.2.2.1.2
+  collection_interval: 60s
+  community: ${env:SNMP_COMMUNITY}
+  endpoint: udp://192.168.100.1:161
+  metrics:
+    interface.in.errors:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.14
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: '1'
+    interface.in.octets:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.10
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+    interface.out.octets:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        oid: 1.3.6.1.2.1.2.2.1.16
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+    system.uptime:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.2.1.1.3.0
+      unit: s
+  version: v2c
+
+
+processors:
+attributes/homeswitch01:
+  actions:
+  - action: insert
+    key: device.name
+    value: HomeSwitch01
+  - action: insert
+    key: device.ip
+    value: 192.168.3.2
+  - action: insert
+    key: device.vendor
+    value: Cisco
+  - action: insert
+    key: device.model
+    value: WS-C3850-48P
+  - action: insert
+    key: device.role
+    value: home_switch
+  - action: insert
+    key: device.site
+    value: House
+attributes/homeswitch02:
+  actions:
+  - action: insert
+    key: device.name
+    value: HomeSwitch02
+  - action: insert
+    key: device.ip
+    value: 192.168.3.3
+  - action: insert
+    key: device.vendor
+    value: Cisco
+  - action: insert
+    key: device.model
+    value: WS-C3850-48P
+  - action: insert
+    key: device.role
+    value: home_switch
+  - action: insert
+    key: device.site
+    value: House
+attributes/pfsense-fw01:
+  actions:
+  - action: insert
+    key: device.name
+    value: pfSense-FW01
+  - action: insert
+    key: device.ip
+    value: 192.168.100.1
+  - action: insert
+    key: device.vendor
+    value: Netgate
+  - action: insert
+    key: device.model
+    value: 8200 Max PFSense+ Security Gateway
+  - action: insert
+    key: device.role
+    value: firewall
+  - action: insert
+    key: device.site
+    value: House
+
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, prometheus, snmp/homeswitch01, snmp/homeswitch02, snmp/pfsense-fw01]
+      processors: [memory_limiter, attributes/homeswitch01, attributes/homeswitch02, attributes/pfsense-fw01, resource, batch]
+      exporters: [prometheusremotewrite, debug]

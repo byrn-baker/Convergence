@@ -31,6 +31,47 @@ receivers:
               labels:
                 service: 'otel-collector'
 
+  # Syslog receivers for network devices (RFC 3164 BSD format)
+  syslog/udp:
+    udp:
+      listen_address: "0.0.0.0:514"
+    protocol: rfc3164
+    location: America/Denver
+    attributes:
+      protocol: udp
+    operators:
+      # Parse pfSense filterlog format (only for filterlog entries)
+      - type: regex_parser
+        if: 'attributes.appname == "filterlog"'
+        regex: '^(?P<rule_num>\d+),[^,]*,[^,]*,(?P<tracker>\d+),(?P<interface>[^,]+),(?P<reason>[^,]+),(?P<action>pass|block),(?P<direction>in|out),(?P<ip_version>\d),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(?P<proto_id>\d+),(?P<proto_name>\w+),[^,]*,(?P<src_ip>[\d\.]+),(?P<dst_ip>[\d\.]+)'
+        parse_from: attributes.message
+        parse_to: attributes
+        on_error: send
+      - type: add
+        if: 'attributes.appname == "filterlog"'
+        field: attributes.log_type
+        value: "firewall"
+
+  syslog/tcp:
+    tcp:
+      listen_address: "0.0.0.0:514"
+    protocol: rfc3164
+    location: America/Denver
+    attributes:
+      protocol: tcp
+    operators:
+      # Parse pfSense filterlog format (only for filterlog entries)
+      - type: regex_parser
+        if: 'attributes.appname == "filterlog"'
+        regex: '^(?P<rule_num>\d+),[^,]*,[^,]*,(?P<tracker>\d+),(?P<interface>[^,]+),(?P<reason>[^,]+),(?P<action>pass|block),(?P<direction>in|out),(?P<ip_version>\d),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(?P<proto_id>\d+),(?P<proto_name>\w+),[^,]*,(?P<src_ip>[\d\.]+),(?P<dst_ip>[\d\.]+)'
+        parse_from: attributes.message
+        parse_to: attributes
+        on_error: send
+      - type: add
+        if: 'attributes.appname == "filterlog"'
+        field: attributes.log_type
+        value: "firewall"
+
   # SNMP receivers - Auto-generated from Nautobot
   # Device metadata (hostname, site, vendor, model, role) added via attributes processors
 
@@ -207,6 +248,10 @@ processors:
         value: "convergence"
         action: insert
 
+  # Convert Delta to Cumulative for Prometheus compatibility
+  deltatocumulative/firewall:
+    max_stale: 5m
+
   # Add Nautobot device metadata to SNMP metrics
   # HomeSwitch01 metadata
   attributes/homeswitch01:
@@ -274,6 +319,19 @@ processors:
         value: "House"
         action: insert
 
+  # Enrich syslog logs with device metadata from Nautobot
+  transform/syslog_enrichment:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        conditions:
+          - attributes["appname"] == "filterlog"
+        statements:
+          - set(attributes["device.name"], "pfSense-FW01")
+          - set(attributes["device.vendor"], "Netgate")
+          - set(attributes["device.role"], "firewall")
+          - set(attributes["device.site"], "House")
+
 exporters:
   # Prometheus Remote Write to VictoriaMetrics
   prometheusremotewrite:
@@ -281,11 +339,36 @@ exporters:
     tls:
       insecure: true
 
+  # File exporter for syslog logs (Promtail will tail these)
+  file/syslog:
+    path: /data/syslog/syslog.jsonl
+    rotation:
+      max_megabytes: 100
+      max_days: 3
+      max_backups: 3
+    format: json
+
   # Debug exporter for troubleshooting
   debug:
     verbosity: detailed
     sampling_initial: 5
     sampling_thereafter: 200
+
+connectors:
+  # Convert pfSense firewall logs to metrics
+  count/firewall:
+    logs:
+      firewall_events:
+        description: "Count of firewall events"
+        conditions:
+          - 'attributes["log_type"] == "firewall"'
+        attributes:
+          - key: action
+          - key: direction
+          - key: interface
+          - key: proto_name
+          - key: src_ip
+          - key: dst_ip
 
 service:
   extensions: [health_check, pprof, zpages]
@@ -315,11 +398,24 @@ service:
       processors: [memory_limiter, resource, batch]
       exporters: [prometheusremotewrite, debug]
 
-    # Logs pipeline (OTLP only - syslogs handled by Promtail)
+    # Logs pipeline - OTLP
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [debug]
+
+    # Syslog pipeline - Network devices (RFC 3164 BSD format from Cisco/pfSense)
+    # Writes to file (for Loki via Promtail) and converts to metrics
+    logs/syslog:
+      receivers: [syslog/udp, syslog/tcp]
+      processors: [memory_limiter, transform/syslog_enrichment, resource, batch]
+      exporters: [file/syslog, count/firewall, debug]
+
+    # Firewall metrics pipeline - Converts parsed firewall logs to metrics
+    metrics/firewall:
+      receivers: [count/firewall]
+      processors: [memory_limiter, deltatocumulative/firewall, resource, batch]
+      exporters: [prometheusremotewrite, debug]
 
     # Traces pipeline (minimal)
     traces:
