@@ -174,8 +174,9 @@
               }
             },
             "location": {
-              "mode": "geohash",
-              "geohash": "src_ip"
+              "mode": "coords",
+              "latitude": "src_lat",
+              "longitude": "src_lon"
             },
             "name": "WAN Threats",
             "tooltip": true,
@@ -200,7 +201,7 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(100, sum by (src_ip) (increase(firewall_events_total{action=\"block\", direction=\"in\", interface=\"igc0.201\", src_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))",
+          "expr": "topk(100, sum by (src_ip, src_lat, src_lon, src_country) (increase(firewall_events_total{action=\"block\", direction=\"in\", interface=\"igc0.201\", src_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -339,8 +340,9 @@
               }
             },
             "location": {
-              "mode": "geohash",
-              "geohash": "dst_ip"
+              "mode": "coords",
+              "latitude": "dst_lat",
+              "longitude": "dst_lon"
             },
             "name": "Blocked Destinations",
             "tooltip": true,
@@ -380,8 +382,9 @@
               }
             },
             "location": {
-              "mode": "geohash",
-              "geohash": "dst_ip"
+              "mode": "coords",
+              "latitude": "dst_lat",
+              "longitude": "dst_lon"
             },
             "name": "Allowed Destinations",
             "tooltip": true,
@@ -406,7 +409,7 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(100, sum by (dst_ip) (increase(firewall_events_total{action=\"block\", dst_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))",
+          "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"block\", dst_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))",
           "format": "table",
           "instant": true,
           "refId": "Blocked"
@@ -416,7 +419,7 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(100, sum by (dst_ip) (increase(firewall_events_total{action=\"pass\", dst_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))",
+          "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"pass\", dst_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))"
           "format": "table",
           "instant": true,
           "refId": "Passed"

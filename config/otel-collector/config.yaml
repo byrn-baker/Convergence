@@ -332,6 +332,40 @@ processors:
           - set(attributes["device.role"], "firewall")
           - set(attributes["device.site"], "House")
 
+  # GeoIP enrichment for source IPs
+  geoip/src:
+    context: log
+    db_path: /var/lib/geoip/GeoLite2-City.mmdb
+    source:
+      from: attributes.src_ip
+    output:
+      location: attributes.src_location
+      geo:
+        city_name: attributes.src_city
+        country_name: attributes.src_country
+        country_iso_code: attributes.src_country_code
+        continent_name: attributes.src_continent
+        region_name: attributes.src_region
+        latitude: attributes.src_lat
+        longitude: attributes.src_lon
+
+  # GeoIP enrichment for destination IPs
+  geoip/dst:
+    context: log
+    db_path: /var/lib/geoip/GeoLite2-City.mmdb
+    source:
+      from: attributes.dst_ip
+    output:
+      location: attributes.dst_location
+      geo:
+        city_name: attributes.dst_city
+        country_name: attributes.dst_country
+        country_iso_code: attributes.dst_country_code
+        continent_name: attributes.dst_continent
+        region_name: attributes.dst_region
+        latitude: attributes.dst_lat
+        longitude: attributes.dst_lon
+
 exporters:
   # Prometheus Remote Write to VictoriaMetrics
   prometheusremotewrite:
@@ -369,6 +403,12 @@ connectors:
           - key: proto_name
           - key: src_ip
           - key: dst_ip
+          - key: src_lat
+          - key: src_lon
+          - key: src_country
+          - key: dst_lat
+          - key: dst_lon
+          - key: dst_country
 
 service:
   extensions: [health_check, pprof, zpages]
@@ -408,7 +448,7 @@ service:
     # Writes to file (for Loki via Promtail) and converts to metrics
     logs/syslog:
       receivers: [syslog/udp, syslog/tcp]
-      processors: [memory_limiter, transform/syslog_enrichment, resource, batch]
+      processors: [memory_limiter, transform/syslog_enrichment, geoip/src, geoip/dst, resource, batch]
       exporters: [file/syslog, count/firewall, debug]
 
     # Firewall metrics pipeline - Converts parsed firewall logs to metrics
