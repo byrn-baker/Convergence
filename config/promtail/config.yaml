@@ -9,7 +9,9 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # Tail syslog logs from OTEL Collector
+  # Tail syslog logs from OTEL Collector (OTLP JSON format)
+  # OTEL file exporter writes one ExportLogsServiceRequest JSON per line.
+  # Attributes are serialized as: {"key":"NAME","value":{"stringValue":"VALUE"}}
   - job_name: otel-syslog
     static_configs:
       - targets:
@@ -17,17 +19,72 @@ scrape_configs:
         labels:
           job: syslog
           __path__: /data/syslog/*.jsonl
+
     pipeline_stages:
-      - json:
-          expressions:
-            timestamp: timestamp
-            body: body
-            appname: resourceLogs[0].scopeLogs[0].logRecords[0].attributes.appname
-            protocol: resourceLogs[0].scopeLogs[0].logRecords[0].attributes.protocol
-            facility: resourceLogs[0].scopeLogs[0].logRecords[0].attributes.facility
+      # -----------------------------------------------------------------------
+      # Stage 1: Extract the log body (human-readable syslog message) from the
+      # OTLP JSON envelope so Loki stores it as the log line, not raw JSON.
+      # -----------------------------------------------------------------------
+      - regex:
+          # Extract the syslog message body from the OTLP stringValue
+          expression: '"body":\{"stringValue":"(?P<log_body>[^"\\\\]*)(?:\\\\.[^"\\\\]*)*"'
+      - template:
+          source: log_body
+          template: '{{ Replace .Value "\\n" " " -1 }}'
+      - output:
+          source: log_body
+
+      # -----------------------------------------------------------------------
+      # Stage 2: Extract structured labels from the OTLP attribute array.
+      # Each attribute looks like: "key":"NAME","value":{"stringValue":"VALUE"}
+      # We extract only low-cardinality fields suitable as Loki labels.
+      # -----------------------------------------------------------------------
+
+      # appname: e.g. "filterlog", "kernel", "dhcpd"
+      - regex:
+          expression: '"key":"appname","value":\{"stringValue":"(?P<appname>[^"]+)"'
+
+      # log_type: "firewall" (set by OTEL transform processor for filterlog entries)
+      - regex:
+          expression: '"key":"log_type","value":\{"stringValue":"(?P<log_type>[^"]+)"'
+
+      # action: "block" or "pass" (extracted from pfSense filterlog by OTEL)
+      - regex:
+          expression: '"key":"action","value":\{"stringValue":"(?P<action>[^"]+)"'
+
+      # interface: pfSense interface name, e.g. "igc0", "igc0.201", "lo0"
+      - regex:
+          expression: '"key":"interface","value":\{"stringValue":"(?P<interface>[^"]+)"'
+
+      # src_country: GeoIP-enriched country name, e.g. "China", "United States"
+      # ~250 possible values — acceptable label cardinality for Loki
+      - regex:
+          expression: '"key":"src_country","value":\{"stringValue":"(?P<src_country>[^"]+)"'
+
+      # src_country_code: ISO 3166-1 alpha-2, e.g. "CN", "US", "RU"
+      - regex:
+          expression: '"key":"src_country_code","value":\{"stringValue":"(?P<src_country_code>[^"]+)"'
+
+      # protocol from syslog transport (udp/tcp) — already parsed by OTEL
+      - regex:
+          expression: '"key":"protocol","value":\{"stringValue":"(?P<protocol>[^"]+)"'
+
+      # facility from syslog header
+      - regex:
+          expression: '"key":"facility","value":\{"stringValue":"(?P<facility>[^"]+)"'
+
+      # -----------------------------------------------------------------------
+      # Stage 3: Promote extracted values to Loki index labels.
+      # Only low-cardinality values become labels; high-cardinality values
+      # (src_ip, src_city, ports) remain as log line content searchable via
+      # LogQL line filters or JSON parsing in queries.
+      # -----------------------------------------------------------------------
       - labels:
           appname:
+          log_type:
+          action:
+          interface:
+          src_country:
+          src_country_code:
           protocol:
           facility:
-      - output:
-          source: body

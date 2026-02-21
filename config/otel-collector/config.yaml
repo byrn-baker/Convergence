@@ -333,38 +333,47 @@ processors:
           - set(attributes["device.site"], "House")
 
   # GeoIP enrichment for source IPs
+  # Process source IP and rename fields
   geoip/src:
-    context: log
-    db_path: /var/lib/geoip/GeoLite2-City.mmdb
-    source:
-      from: attributes.src_ip
-    output:
-      location: attributes.src_location
-      geo:
-        city_name: attributes.src_city
-        country_name: attributes.src_country
-        country_iso_code: attributes.src_country_code
-        continent_name: attributes.src_continent
-        region_name: attributes.src_region
-        latitude: attributes.src_lat
-        longitude: attributes.src_lon
+    context: record
+    providers:
+      maxmind:
+        database_path: /var/lib/geoip/GeoLite2-City.mmdb
+    attributes: [src_ip]
+
+  # Rename source geo fields
+  transform/geoip_src:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["src_lat"], attributes["geo.location.lat"]) where attributes["geo.location.lat"] != nil
+          - set(attributes["src_lon"], attributes["geo.location.lon"]) where attributes["geo.location.lon"] != nil
+          - set(attributes["src_city"], attributes["geo.city_name"]) where attributes["geo.city_name"] != nil
+          - set(attributes["src_country"], attributes["geo.country_name"]) where attributes["geo.country_name"] != nil
+          - set(attributes["src_country_code"], attributes["geo.country.iso_code"]) where attributes["geo.country.iso_code"] != nil
+          - delete_matching_keys(attributes, "geo.*")
 
   # GeoIP enrichment for destination IPs
   geoip/dst:
-    context: log
-    db_path: /var/lib/geoip/GeoLite2-City.mmdb
-    source:
-      from: attributes.dst_ip
-    output:
-      location: attributes.dst_location
-      geo:
-        city_name: attributes.dst_city
-        country_name: attributes.dst_country
-        country_iso_code: attributes.dst_country_code
-        continent_name: attributes.dst_continent
-        region_name: attributes.dst_region
-        latitude: attributes.dst_lat
-        longitude: attributes.dst_lon
+    context: record
+    providers:
+      maxmind:
+        database_path: /var/lib/geoip/GeoLite2-City.mmdb
+    attributes: [dst_ip]
+
+  # Rename destination geo fields
+  transform/geoip_dst:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["dst_lat"], attributes["geo.location.lat"]) where attributes["geo.location.lat"] != nil
+          - set(attributes["dst_lon"], attributes["geo.location.lon"]) where attributes["geo.location.lon"] != nil
+          - set(attributes["dst_city"], attributes["geo.city_name"]) where attributes["geo.city_name"] != nil
+          - set(attributes["dst_country"], attributes["geo.country_name"]) where attributes["geo.country_name"] != nil
+          - set(attributes["dst_country_code"], attributes["geo.country.iso_code"]) where attributes["geo.country.iso_code"] != nil
+          - delete_matching_keys(attributes, "geo.*")
 
 exporters:
   # Prometheus Remote Write to VictoriaMetrics
@@ -448,7 +457,7 @@ service:
     # Writes to file (for Loki via Promtail) and converts to metrics
     logs/syslog:
       receivers: [syslog/udp, syslog/tcp]
-      processors: [memory_limiter, transform/syslog_enrichment, geoip/src, geoip/dst, resource, batch]
+      processors: [memory_limiter, transform/syslog_enrichment, geoip/src, transform/geoip_src, geoip/dst, transform/geoip_dst, resource, batch]
       exporters: [file/syslog, count/firewall, debug]
 
     # Firewall metrics pipeline - Converts parsed firewall logs to metrics

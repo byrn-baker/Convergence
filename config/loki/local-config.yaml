@@ -9,7 +9,7 @@ common:
   storage:
     filesystem:
       chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
+      rules_directory: /etc/loki/rules
   replication_factor: 1
   ring:
     instance_addr: 127.0.0.1
@@ -33,21 +33,28 @@ schema_config:
         prefix: index_
         period: 24h
 
+# ---------------------------------------------------------------------------
+# Ruler — evaluates LogQL alerting and recording rules on a schedule.
+# Rules live in /loki/rules/<tenant>/ (tenant = "fake" when auth disabled).
+# Alerts are forwarded to Alertmanager; recording rules write metric series
+# back into Loki for efficient re-use in dashboards and further rules.
+# ---------------------------------------------------------------------------
 ruler:
-  alertmanager_url: http://localhost:9093
-
-# By default, Loki will send anonymous, but uniquely-identifiable usage and configuration
-# analytics to Grafana Labs. These statistics are sent to https://stats.grafana.org/
-#
-# Statistics help us better understand how Loki is used, and they show us performance
-# levels for most users. This helps us prioritize features and documentation.
-# For more information on what's sent, look at
-# https://github.com/grafana/loki/blob/main/pkg/analytics/stats.go
-# Refer to the buildReport method to see what goes into a report.
-#
-# If you would like to disable reporting, uncomment the following lines:
-#analytics:
-#  reporting_enabled: false
+  storage:
+    type: local
+    local:
+      # Rules are bind-mounted from ./config/loki/rules → /etc/loki/rules
+      # (via the ./config/loki:/etc/loki:ro volume in docker-compose)
+      directory: /etc/loki/rules
+  rule_path: /loki/rules-temp   # scratch dir for rule evaluation (inside named volume)
+  alertmanager_url: http://alertmanager:9093
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+  # Poll interval for rule evaluation
+  evaluation_interval: 1m
+  poll_interval: 1m
 
 limits_config:
   max_query_length: 721h  # 30 days

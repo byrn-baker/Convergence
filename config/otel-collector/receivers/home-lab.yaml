@@ -107,7 +107,7 @@ snmp/pfsense-fw01:
       oid: 1.3.6.1.2.1.2.2.1.2
   collection_interval: 60s
   community: ${env:SNMP_COMMUNITY}
-  endpoint: udp://192.168.100.1:161
+  endpoint: udp://192.168.3.1:161
   metrics:
     interface.in.errors:
       column_oids:
@@ -196,7 +196,7 @@ attributes/pfsense-fw01:
     value: pfSense-FW01
   - action: insert
     key: device.ip
-    value: 192.168.100.1
+    value: 192.168.3.1
   - action: insert
     key: device.vendor
     value: Netgate

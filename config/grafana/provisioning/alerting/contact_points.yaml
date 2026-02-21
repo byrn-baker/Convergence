@@ -1,0 +1,75 @@
+# Grafana Unified Alerting — Contact Points
+# ---------------------------------------------------------------------------
+# Contact points define WHERE alert notifications are sent.
+# Update the webhook URL or email settings in your .env file, then restart
+# Grafana for changes to take effect.
+#
+# To activate: uncomment the relevant receiver block and set credentials.
+# ---------------------------------------------------------------------------
+apiVersion: 1
+
+contactPoints:
+  # -------------------------------------------------------------------------
+  # Webhook contact point — works with Slack Incoming Webhooks, custom HTTP
+  # endpoints, n8n, Home Assistant, Zapier, etc.
+  # For Slack: set url to https://hooks.slack.com/services/T.../B.../xxx
+  # -------------------------------------------------------------------------
+  - orgId: 1
+    name: Webhook
+    receivers:
+      - uid: convergence-webhook
+        type: webhook
+        settings:
+          url: "http://localhost:9999/webhook"
+          httpMethod: POST
+        disableResolveMessage: false
+
+  # -------------------------------------------------------------------------
+  # Discord contact point — uses Grafana's native Discord integration which
+  # sends rich embeds rather than plain JSON.
+  #
+  # How to get a Discord webhook URL:
+  #   1. Open your Discord server → Server Settings → Integrations → Webhooks
+  #   2. Click "New Webhook", choose a channel, copy the URL
+  #   3. Paste it below (format: https://discord.com/api/webhooks/ID/TOKEN)
+  #
+  # Set ALERT_WEBHOOK_URL in your .env to the Discord webhook URL.
+  # -------------------------------------------------------------------------
+  - orgId: 1
+    name: Discord
+    receivers:
+      - uid: convergence-discord
+        type: discord
+        settings:
+          url: "${DISCORD_WEBHOOK_URL}"
+          message: ""
+          use_discord_username: false
+        disableResolveMessage: false
+
+  # -------------------------------------------------------------------------
+  # Email contact point — requires SMTP configuration in grafana.ini or env.
+  # Set GF_SMTP_ENABLED=true and related vars in docker-compose environment.
+  # -------------------------------------------------------------------------
+  - orgId: 1
+    name: Email
+    receivers:
+      - uid: convergence-email
+        type: email
+        settings:
+          # Comma-separated list of recipients
+          addresses: "admin@example.com"
+          # Optional: customise the email subject
+          subject: "[{{ .Status | toUpper }}] {{ .CommonAnnotations.summary }}"
+        disableResolveMessage: false
+
+  # -------------------------------------------------------------------------
+  # Null receiver — drop alerts silently (useful for testing routing rules)
+  # -------------------------------------------------------------------------
+  - orgId: 1
+    name: "Do Nothing"
+    receivers:
+      - uid: convergence-null
+        type: webhook
+        settings:
+          url: "http://localhost:9999/dev/null"
+        disableResolveMessage: true

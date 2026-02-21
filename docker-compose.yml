@@ -77,6 +77,8 @@ services:
       - GF_INSTALL_PLUGINS=
       - GF_DATABASE_GEOIP_DATA_PATH=/var/lib/grafana/geoip/GeoLite2-City.mmdb
       - GF_GEOMAP_ENABLE_CUSTOM_BASELAYER=true
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-https://discord.com/api/webhooks/0/placeholder}
     networks:
       - convergence
     depends_on:
@@ -125,6 +127,28 @@ services:
       - otel-collector
     restart: unless-stopped
 
+  # Alertmanager - Routes alerts from Loki ruler and Grafana to receivers
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: convergence-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://localhost:9093"
+    volumes:
+      - ./config/alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"     # Web UI + API
+    networks:
+      - convergence
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Redis - Caching and queue (optional, for future extensions)
   redis:
     image: redis:7-alpine
@@ -155,5 +179,7 @@ volumes:
     name: convergence-grafana-data
   loki-data:
     name: convergence-loki-data
+  alertmanager-data:
+    name: convergence-alertmanager-data
   redis-data:
     name: convergence-redis-data

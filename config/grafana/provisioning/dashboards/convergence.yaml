@@ -2,55 +2,19 @@
 apiVersion: 1
 
 providers:
-  # Unified dashboards (cross-vendor)
-  - name: 'Convergence Unified'
+  # Network monitoring dashboards (SNMP, interfaces, device health)
+  - name: 'Network'
     orgId: 1
-    folder: 'Convergence - Unified'
+    folder: 'Network'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /var/lib/grafana/dashboards/unified
+      path: /var/lib/grafana/dashboards/network
       foldersFromFilesStructure: false
 
-  # Cisco-specific dashboards
-  - name: 'Convergence Cisco'
-    orgId: 1
-    folder: 'Convergence - Cisco'
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /var/lib/grafana/dashboards/cisco
-      foldersFromFilesStructure: false
-
-  # Juniper-specific dashboards
-  - name: 'Convergence Juniper'
-    orgId: 1
-    folder: 'Convergence - Juniper'
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /var/lib/grafana/dashboards/juniper
-      foldersFromFilesStructure: false
-
-  # Arista-specific dashboards
-  - name: 'Convergence Arista'
-    orgId: 1
-    folder: 'Convergence - Arista'
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /var/lib/grafana/dashboards/arista
-      foldersFromFilesStructure: false
-
-  # Security & Firewall dashboards
+  # Security & Firewall dashboards (pfSense, threat analysis, GeoIP)
   - name: 'Security'
     orgId: 1
     folder: 'Security'
@@ -59,5 +23,39 @@ providers:
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /var/lib/grafana/dashboards
+      path: /var/lib/grafana/dashboards/security
+      foldersFromFilesStructure: false
+
+  # Vendor-specific dashboards (placeholders for future expansion)
+  - name: 'Convergence Cisco'
+    orgId: 1
+    folder: 'Vendor - Cisco'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/cisco
+      foldersFromFilesStructure: false
+
+  - name: 'Convergence Juniper'
+    orgId: 1
+    folder: 'Vendor - Juniper'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/juniper
+      foldersFromFilesStructure: false
+
+  - name: 'Convergence Arista'
+    orgId: 1
+    folder: 'Vendor - Arista'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/arista
       foldersFromFilesStructure: false

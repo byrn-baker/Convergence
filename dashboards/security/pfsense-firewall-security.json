@@ -419,7 +419,7 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"pass\", dst_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))"
+          "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"pass\", dst_ip!~\"^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.|192\\\\.168\\\\.)\"}[2h])))",
           "format": "table",
           "instant": true,
           "refId": "Passed"
@@ -619,7 +619,7 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(100, sum by (src_ip) (rate(firewall_events_total{action=\"block\"}[5m])))",
+          "expr": "topk(100, sum by (src_ip, src_country) (rate(firewall_events_total{action=\"block\"}[5m])))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -633,10 +633,15 @@
             "excludeByName": {
               "Time": true
             },
-            "indexByName": {},
+            "indexByName": {
+              "src_ip": 0,
+              "src_country": 1,
+              "Value": 2
+            },
             "renameByName": {
               "Value": "Events/sec",
-              "src_ip": "Source IP"
+              "src_ip": "Source IP",
+              "src_country": "Country"
             }
           }
         }
@@ -887,7 +892,9 @@
               }
             },
             "location": {
-              "mode": "geohash"
+              "mode": "coords",
+              "latitude": "src_lat",
+              "longitude": "src_lon"
             },
             "name": "Blocked IPs",
             "tooltip": true,
@@ -912,13 +919,13 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(100, sum by (src_ip) (increase(firewall_events_total{action=\"block\", direction=\"in\"}[1h])))",
+          "expr": "topk(100, sum by (src_ip, src_lat, src_lon, src_country) (increase(firewall_events_total{action=\"block\", direction=\"in\"}[1h])))",
           "format": "table",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Geographic Map - Blocked Source IPs (Requires GeoIP Setup)",
+      "title": "🌍 Geographic Map - All Blocked Source IPs",
       "transformations": [
         {
           "id": "organize",
@@ -1101,7 +1108,7 @@
             "type": "prometheus",
             "uid": "VictoriaMetrics"
           },
-          "expr": "topk(20, sum by (src_ip, dst_ip, proto_name, action) (increase(firewall_events_total[1h])))",
+          "expr": "topk(20, sum by (src_ip, src_country, dst_ip, dst_country, proto_name, action) (increase(firewall_events_total[1h])))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -1115,13 +1122,23 @@
             "excludeByName": {
               "Time": true
             },
-            "indexByName": {},
+            "indexByName": {
+              "src_ip": 0,
+              "src_country": 1,
+              "dst_ip": 2,
+              "dst_country": 3,
+              "proto_name": 4,
+              "action": 5,
+              "Value": 6
+            },
             "renameByName": {
               "Value": "Count",
               "action": "Action",
-              "dst_ip": "Destination",
+              "dst_ip": "Destination IP",
+              "dst_country": "Dest Country",
               "proto_name": "Protocol",
-              "src_ip": "Source"
+              "src_ip": "Source IP",
+              "src_country": "Src Country"
             }
           }
         }

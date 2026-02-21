@@ -1,0 +1,112 @@
+# Alertmanager Configuration for Convergence Platform
+#
+# Receives alerts from:
+#   - Loki ruler (LogQL-based firewall spike detection)
+#   - Grafana unified alerting (VictoriaMetrics-based SNMP/metric alerts)
+#
+# Routing:
+#   - critical → webhook + email (if configured)
+#   - warning  → webhook only
+#
+# Set ALERT_WEBHOOK_URL and ALERT_EMAIL in your .env file to activate.
+# Slack integration requires SLACK_WEBHOOK_URL.
+
+global:
+  # How long to wait before re-sending a resolved alert
+  resolve_timeout: 5m
+
+  # SMTP settings — fill in or set via environment substitution
+  # smtp_smarthost: 'smtp.example.com:587'
+  # smtp_from: 'alertmanager@example.com'
+  # smtp_auth_username: 'alertmanager@example.com'
+  # smtp_auth_password: 'your_smtp_password'
+  # smtp_require_tls: true
+
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# ---------------------------------------------------------------------------
+# Routing tree
+# ---------------------------------------------------------------------------
+route:
+  # Default receiver for unmatched alerts
+  receiver: 'webhook-default'
+
+  # Group alerts by these labels to reduce notification noise
+  group_by: ['alertname', 'severity', 'src_country']
+
+  # Wait before sending the first notification for a new group
+  group_wait: 30s
+
+  # Wait before sending a notification for new alerts added to an existing group
+  group_interval: 5m
+
+  # How long to wait before re-sending notifications for a still-firing group
+  repeat_interval: 4h
+
+  routes:
+    # Critical alerts → webhook + email
+    - matchers:
+        - severity = critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts → webhook only (less urgent)
+    - matchers:
+        - severity = warning
+      receiver: 'webhook-default'
+      group_wait: 30s
+      repeat_interval: 4h
+
+# ---------------------------------------------------------------------------
+# Receivers
+# ---------------------------------------------------------------------------
+receivers:
+  # Default webhook receiver — works with Slack incoming webhooks, custom
+  # scripts, or any HTTP endpoint that accepts POST JSON.
+  # Set ALERT_WEBHOOK_URL in .env to activate.
+  - name: 'webhook-default'
+    webhook_configs:
+      - url: 'http://localhost:9999/webhook'  # Replace with your webhook URL
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        # Slack-compatible JSON payload (works with Slack Incoming Webhooks)
+        # To use Slack: set url to your SLACK_WEBHOOK_URL
+        #
+        # The default Alertmanager webhook payload is JSON with:
+        #   .receiver, .status, .alerts[], .groupLabels, .commonLabels,
+        #   .commonAnnotations, .externalURL
+        max_alerts: 10
+
+  # Critical receiver — webhook + optional email
+  - name: 'critical-alerts'
+    webhook_configs:
+      - url: 'http://localhost:9999/webhook'  # Replace with your webhook URL
+        send_resolved: true
+        max_alerts: 10
+    # Uncomment and configure for email notifications:
+    # email_configs:
+    #   - to: 'admin@example.com'
+    #     from: 'alertmanager@convergence.local'
+    #     smarthost: 'smtp.example.com:587'
+    #     auth_username: 'alertmanager@convergence.local'
+    #     auth_password: 'smtp_password'
+    #     send_resolved: true
+    #     headers:
+    #       Subject: '[{{ .Status | toUpper }}] Convergence Alert: {{ .CommonAnnotations.summary }}'
+
+# ---------------------------------------------------------------------------
+# Inhibition rules — suppress lower-severity alerts when higher ones fire
+# ---------------------------------------------------------------------------
+inhibit_rules:
+  # If a critical alert fires for the same alertname, suppress warnings
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ['alertname']

@@ -1,0 +1,118 @@
+groups:
+  # ---------------------------------------------------------------------------
+  # Recording Rules — pre-aggregate expensive LogQL queries into metric series.
+  # Stored in Loki and available via the Loki metrics API for dashboards.
+  # These run every 1m (ruler.evaluation_interval) and generate cheap-to-query
+  # time-series that Grafana panels can use without rescanning raw logs.
+  # ---------------------------------------------------------------------------
+  - name: firewall_recording_rules
+    interval: 1m
+    rules:
+      # Total firewall block rate per 5-minute window, by country
+      - record: firewall:blocks_by_country:rate5m
+        expr: |
+          sum by (src_country, src_country_code) (
+            count_over_time(
+              {job="syslog", log_type="firewall", action="block"}[5m]
+            )
+          )
+
+      # Total firewall block rate per 5-minute window, by interface
+      - record: firewall:blocks_by_interface:rate5m
+        expr: |
+          sum by (interface) (
+            count_over_time(
+              {job="syslog", log_type="firewall", action="block"}[5m]
+            )
+          )
+
+      # Overall firewall block rate (events per 5-minute window)
+      - record: firewall:blocks_total:rate5m
+        expr: |
+          sum(
+            count_over_time(
+              {job="syslog", log_type="firewall", action="block"}[5m]
+            )
+          )
+
+  # ---------------------------------------------------------------------------
+  # Alerting Rules — fired when LogQL expressions exceed thresholds.
+  # Alerts route to Alertmanager → webhook / email / Slack.
+  # Tune thresholds to match your normal traffic baseline.
+  # ---------------------------------------------------------------------------
+  - name: firewall_spike_detection
+    interval: 1m
+    rules:
+      # -----------------------------------------------------------------------
+      # Alert: Block spike from a single country.
+      # Fires when one country accounts for >200 block events in 5 minutes.
+      # This catches scanning campaigns and DDoS ramp-ups from specific regions.
+      # Tune the threshold based on your baseline (check firewall:blocks_by_country:rate5m).
+      # -----------------------------------------------------------------------
+      - alert: BlockSpikeFromCountry
+        expr: |
+          sum by (src_country, src_country_code) (
+            count_over_time(
+              {job="syslog", log_type="firewall", action="block"}[5m]
+            )
+          ) > 200
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Block spike detected from {{ $labels.src_country }} ({{ $labels.src_country_code }})"
+          description: >
+            {{ $value }} firewall block events from {{ $labels.src_country }}
+            in the last 5 minutes. This may indicate a coordinated scan or
+            DDoS ramp-up. Check the pfSense Security Dashboard for details.
+          dashboard_url: "http://localhost:3000/d/pfsense-security"
+
+      # -----------------------------------------------------------------------
+      # Alert: Sustained high total block volume.
+      # Fires when the overall firewall block rate exceeds 500 events/5min,
+      # regardless of origin country. Catches broadly distributed attacks.
+      # -----------------------------------------------------------------------
+      - alert: HighTotalFirewallBlockRate
+        expr: |
+          sum(
+            count_over_time(
+              {job="syslog", log_type="firewall", action="block"}[5m]
+            )
+          ) > 500
+        for: 3m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High firewall block rate: {{ $value }} blocks in 5 minutes"
+          description: >
+            Total firewall block events exceeded 500 in the last 5 minutes.
+            This may indicate a DDoS attack or large-scale scan. Review the
+            threat map and block list on the pfSense Security Dashboard.
+          dashboard_url: "http://localhost:3000/d/pfsense-security"
+
+      # -----------------------------------------------------------------------
+      # Alert: WAN interface receiving excessive blocks.
+      # Specifically watches the WAN-facing interface for attack volume.
+      # Update "igc0.201" to match your actual WAN interface name.
+      # -----------------------------------------------------------------------
+      - alert: WANInterfaceUnderAttack
+        expr: |
+          sum by (interface) (
+            count_over_time(
+              {job="syslog", log_type="firewall", action="block",
+               interface=~"igc0.*|em0.*|vtnet0.*|re0.*"}[5m]
+            )
+          ) > 300
+        for: 2m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "WAN interface {{ $labels.interface }} under attack ({{ $value }} blocks/5m)"
+          description: >
+            WAN interface {{ $labels.interface }} is receiving {{ $value }}
+            firewall block events in the last 5 minutes. Potential DDoS or
+            targeted attack in progress. Check pfSense Security Dashboard.
+          dashboard_url: "http://localhost:3000/d/pfsense-security"
