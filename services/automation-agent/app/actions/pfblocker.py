@@ -174,59 +174,259 @@ async def rollback_pfblocker_add(action: PfBlockerAction) -> dict[str, Any]:
         result["message"] = "PFSENSE_HOST not configured; cannot rollback"
         return result
 
-    # TODO: implement live rollback via XML-RPC / SSH (mirror of execute)
+    for attempt_fn, label in [(_xmlrpc_delete, "xmlrpc"), (_ssh_delete, "ssh")]:
+        try:
+            attempt_result = await attempt_fn(action)
+            if attempt_result.get("success"):
+                result.update(attempt_result)
+                logger.info(
+                    "Rollback succeeded via %s: %s removed from %s",
+                    label, action.value, action.target_list,
+                )
+                return result
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            logger.warning("Rollback %s attempt failed: %s", label, exc)
+
     result["message"] = (
-        "Live rollback not yet implemented. "
-        f"Manual step: pfctl -t {action.target_list} -T delete {action.value}"
+        f"All rollback methods failed for {action.value}. "
+        f"Manual: pfctl -t {action.target_list} -T delete {action.value}"
     )
-    logger.warning(
-        "ROLLBACK NEEDED for %s from list '%s' — implement manually",
-        action.value,
-        action.target_list,
+    logger.error(
+        "ROLLBACK FAILED for %s from '%s' — manual intervention required",
+        action.value, action.target_list,
     )
     return result
 
 
 # ---------------------------------------------------------------------------
-# Integration stubs (replace with real code when credentials are available)
+# Integration — XML-RPC (primary) and SSH (fallback)
+#
+# Both functions require DRY_RUN=false and PFSENSE_HOST to be set.
+# XML-RPC also requires PFSENSE_XMLRPC_PASS.
+# SSH requires PFSENSE_SSH_KEY_PATH to be a readable private key file.
+#
+# pfBlockerNG custom list file path on pfSense:
+#   /var/db/pfblockerng/custom/{list_name}.txt
+# The list MUST already exist in pfBlockerNG > IP > IPv4 > Custom Lists.
 # ---------------------------------------------------------------------------
 
 
 async def _xmlrpc_add(action: PfBlockerAction) -> dict[str, Any]:
-    """Add IP via pfSense XML-RPC exec_php.
+    """Add IP/CIDR to pfBlockerNG via pfSense XML-RPC exec_php.
 
-    TODO — replace the NotImplementedError body with:
+    Uses pfSense's built-in /xmlrpc.php endpoint with the exec_php method
+    to append the CIDR to the custom list file and trigger a pfBlockerNG sync.
+    The sync persists the block across pfBlockerNG reloads.
 
-        import xmlrpc.client, ssl
-        ctx = ssl.create_default_context()
-        if not settings.pfsense_verify_ssl:
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-        proxy = xmlrpc.client.ServerProxy(
-            f"https://{settings.pfsense_xmlrpc_user}:{settings.pfsense_xmlrpc_pass}"
-            f"@{settings.pfsense_host}/xmlrpc.php",
-            context=ctx,
-        )
-        # Append IP to custom list file and trigger pfB reload
-        php = (
-            f'$f = "/var/db/pfblockerng/custom/{action.target_list}.txt"; '
-            f'file_put_contents($f, "{action.value}\\n", FILE_APPEND | LOCK_EX); '
-            f'require_once("/usr/local/pkg/pfblockerng/pfblockerng.inc"); '
-            f'pfb_sync();'
-        )
-        proxy.pfsense.exec_php(php)
-        return {"success": True, "message": f"xmlrpc: added {action.value}"}
+    Requirements:
+        PFSENSE_HOST, PFSENSE_XMLRPC_USER, PFSENSE_XMLRPC_PASS must be set.
+        SSL verification is controlled by PFSENSE_VERIFY_SSL (default False
+        for self-signed certs common in home/SOHO pfSense installs).
     """
-    raise NotImplementedError("XML-RPC integration not yet implemented")
+    import ssl
+    import xmlrpc.client
+    import asyncio
+
+    if not settings.pfsense_xmlrpc_pass:
+        raise ValueError(
+            "PFSENSE_XMLRPC_PASS is not set. "
+            "Set it in .env to enable XML-RPC integration."
+        )
+
+    # Build SSL context — self-signed certs are common on home pfSense installs
+    ctx = ssl.create_default_context()
+    if not settings.pfsense_verify_ssl:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+    # XML-RPC URI includes basic auth credentials
+    uri = (
+        f"https://{settings.pfsense_xmlrpc_user}:{settings.pfsense_xmlrpc_pass}"
+        f"@{settings.pfsense_host}/xmlrpc.php"
+    )
+
+    # PHP snippet: append CIDR to the custom list file then trigger pfB sync.
+    # file_put_contents with FILE_APPEND | LOCK_EX is atomic on pfSense FreeBSD.
+    # pfb_sync() queues a background reload that completes within ~30 seconds.
+    list_path = f"/var/db/pfblockerng/custom/{action.target_list}.txt"
+    php_code = (
+        f'$f = "{list_path}"; '
+        f'$line = "{action.value}\\n"; '
+        # Avoid writing duplicates
+        f'$existing = file_exists($f) ? file_get_contents($f) : ""; '
+        f'if (strpos($existing, "{action.value}") === false) {{ '
+        f'  file_put_contents($f, $line, FILE_APPEND | LOCK_EX); '
+        f'}} '
+        f'require_once("/usr/local/pkg/pfblockerng/pfblockerng.inc"); '
+        f'pfblockerng_sync_cron();'
+    )
+
+    logger.info(
+        "XML-RPC: connecting to %s as %s",
+        settings.pfsense_host,
+        settings.pfsense_xmlrpc_user,
+    )
+
+    # xmlrpc.client is synchronous — run in a thread to avoid blocking the event loop
+    def _rpc_call() -> None:
+        proxy = xmlrpc.client.ServerProxy(uri, context=ctx, allow_none=True)
+        # pfsense.exec_php returns the PHP output (usually empty on success)
+        result = proxy.pfsense.exec_php(php_code)
+        return result
+
+    try:
+        rpc_result = await asyncio.get_event_loop().run_in_executor(None, _rpc_call)
+        logger.info(
+            "XML-RPC add succeeded for %s → %s (rpc_output=%r)",
+            action.value,
+            action.target_list,
+            rpc_result,
+        )
+        return {
+            "success": True,
+            "method": "xmlrpc",
+            "message": f"xmlrpc: appended {action.value} to {list_path} and triggered pfb_sync",
+            "rollback_command": (
+                f"php -r 'require_once(\"/usr/local/pkg/pfblockerng/pfblockerng.inc\"); "
+                f"$f=\"{list_path}\"; "
+                f"$c=file_get_contents($f); "
+                f"file_put_contents($f, str_replace(\"{action.value}\\n\",\"\",$c));'"
+            ),
+        }
+    except xmlrpc.client.Fault as exc:
+        raise RuntimeError(f"XML-RPC fault {exc.faultCode}: {exc.faultString}") from exc
+    except Exception as exc:
+        raise RuntimeError(f"XML-RPC call failed: {exc}") from exc
+
+
+async def _xmlrpc_delete(action: PfBlockerAction) -> dict[str, Any]:
+    """Remove IP/CIDR from pfBlockerNG via pfSense XML-RPC exec_php (rollback)."""
+    import ssl
+    import xmlrpc.client
+    import asyncio
+
+    if not settings.pfsense_xmlrpc_pass:
+        raise ValueError("PFSENSE_XMLRPC_PASS is not set")
+
+    ctx = ssl.create_default_context()
+    if not settings.pfsense_verify_ssl:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+    uri = (
+        f"https://{settings.pfsense_xmlrpc_user}:{settings.pfsense_xmlrpc_pass}"
+        f"@{settings.pfsense_host}/xmlrpc.php"
+    )
+    list_path = f"/var/db/pfblockerng/custom/{action.target_list}.txt"
+    php_code = (
+        f'$f = "{list_path}"; '
+        f'if (file_exists($f)) {{ '
+        f'  $c = file_get_contents($f); '
+        f'  $c = str_replace("{action.value}\\n", "", $c); '
+        f'  file_put_contents($f, $c, LOCK_EX); '
+        f'}} '
+        f'require_once("/usr/local/pkg/pfblockerng/pfblockerng.inc"); '
+        f'pfblockerng_sync_cron();'
+    )
+
+    def _rpc_call() -> None:
+        proxy = xmlrpc.client.ServerProxy(uri, context=ctx, allow_none=True)
+        return proxy.pfsense.exec_php(php_code)
+
+    await asyncio.get_event_loop().run_in_executor(None, _rpc_call)
+    return {
+        "success": True,
+        "method": "xmlrpc",
+        "message": f"xmlrpc: removed {action.value} from {list_path} and triggered pfb_sync",
+    }
 
 
 async def _ssh_add(action: PfBlockerAction) -> dict[str, Any]:
-    """Add IP via pfSense SSH using paramiko.
+    """Add IP/CIDR to pfSense via SSH using paramiko.
 
-    TODO — replace the NotImplementedError body with:
+    Runs: pfctl -t {target_list} -T add {value}
 
-        import paramiko
-        host = settings.pfsense_ssh_host or settings.pfsense_host
+    This adds to the **runtime pf table** immediately (< 1 second) but does
+    NOT persist across pfBlockerNG reloads. Best for short-TTL emergency blocks.
+    For persistent blocks, prefer the XML-RPC path which writes to the list file.
+
+    Requirements:
+        PFSENSE_SSH_HOST (or PFSENSE_HOST), PFSENSE_SSH_USER,
+        PFSENSE_SSH_KEY_PATH (path to private key inside the container).
+    """
+    import asyncio
+
+    import paramiko
+
+    host = settings.pfsense_ssh_host or settings.pfsense_host
+    key_path = settings.pfsense_ssh_key_path
+
+    logger.info(
+        "SSH: connecting to %s@%s (key=%s)",
+        settings.pfsense_ssh_user,
+        host,
+        key_path,
+    )
+
+    def _ssh_exec() -> tuple[int, str, str]:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            host,
+            username=settings.pfsense_ssh_user,
+            key_filename=key_path,
+            timeout=15,
+            look_for_keys=False,
+            allow_agent=False,
+        )
+        # Two commands: runtime pf table add + append to custom list file for persistence
+        commands = [
+            f"pfctl -t {action.target_list} -T add {action.value}",
+            f"echo '{action.value}' >> /var/db/pfblockerng/custom/{action.target_list}.txt",
+        ]
+        outputs = []
+        for cmd in commands:
+            _stdin, stdout, stderr = client.exec_command(cmd)
+            exit_code = stdout.channel.recv_exit_status()
+            out = stdout.read().decode().strip()
+            err = stderr.read().decode().strip()
+            outputs.append((cmd, exit_code, out, err))
+            if exit_code != 0:
+                client.close()
+                raise RuntimeError(
+                    f"SSH command failed (exit={exit_code}): {cmd!r} — stderr: {err}"
+                )
+        client.close()
+        return outputs
+
+    try:
+        results = await asyncio.get_event_loop().run_in_executor(None, _ssh_exec)
+        summary = "; ".join(f"'{r[0]}' exit={r[1]}" for r in results)
+        logger.info("SSH add succeeded for %s → %s: %s", action.value, action.target_list, summary)
+        return {
+            "success": True,
+            "method": "ssh",
+            "message": f"ssh: pfctl add {action.value} to {action.target_list} — {summary}",
+            "rollback_command": (
+                f"pfctl -t {action.target_list} -T delete {action.value} && "
+                f"sed -i '' '/{action.value.replace('.', r'\\.')}/d' "
+                f"/var/db/pfblockerng/custom/{action.target_list}.txt"
+            ),
+        }
+    except Exception as exc:
+        raise RuntimeError(f"SSH execution failed: {exc}") from exc
+
+
+async def _ssh_delete(action: PfBlockerAction) -> dict[str, Any]:
+    """Remove IP/CIDR from pfSense runtime pf table and list file via SSH (rollback)."""
+    import asyncio
+    import paramiko
+
+    host = settings.pfsense_ssh_host or settings.pfsense_host
+
+    def _ssh_exec() -> list:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(
@@ -234,13 +434,26 @@ async def _ssh_add(action: PfBlockerAction) -> dict[str, Any]:
             username=settings.pfsense_ssh_user,
             key_filename=settings.pfsense_ssh_key_path,
             timeout=15,
+            look_for_keys=False,
+            allow_agent=False,
         )
-        cmd = f"pfctl -t {action.target_list} -T add {action.value}"
-        stdin, stdout, stderr = client.exec_command(cmd)
-        exit_code = stdout.channel.recv_exit_status()
+        escaped = action.value.replace(".", r"\.").replace("/", r"\/")
+        commands = [
+            f"pfctl -t {action.target_list} -T delete {action.value}",
+            f"sed -i '' '/{escaped}/d' /var/db/pfblockerng/custom/{action.target_list}.txt",
+        ]
+        results = []
+        for cmd in commands:
+            _stdin, stdout, stderr = client.exec_command(cmd)
+            exit_code = stdout.channel.recv_exit_status()
+            results.append((cmd, exit_code, stderr.read().decode().strip()))
         client.close()
-        if exit_code != 0:
-            raise RuntimeError(stderr.read().decode())
-        return {"success": True, "message": f"ssh: pfctl add {action.value} exit={exit_code}"}
-    """
-    raise NotImplementedError("SSH integration not yet implemented")
+        return results
+
+    results = await asyncio.get_event_loop().run_in_executor(None, _ssh_exec)
+    summary = "; ".join(f"exit={r[1]}" for r in results)
+    return {
+        "success": True,
+        "method": "ssh",
+        "message": f"ssh: removed {action.value} from {action.target_list} — {summary}",
+    }
