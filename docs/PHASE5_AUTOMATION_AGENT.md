@@ -1,13 +1,13 @@
 # Phase 5: Event-Driven Automation Agent
 
 **Last Updated:** 2026-02-25
-**Status:** Implemented (DRY_RUN mode — pfSense integration stubs ready for credentials)
+**Status:** Live — XML-RPC alias mode active, Discord bot running, repeat-offender tracking enabled
 
 ---
 
 ## Overview
 
-Phase 5 adds a `automation-agent` microservice that turns high-risk threat-intel signals into
+Phase 5 adds an `automation-agent` microservice that turns high-risk threat-intel signals into
 auditable, human-gated (or auto-approved) pfSense blocking actions. The core design principle is
 **fail-closed with a complete paper trail**: every decision the AI makes is committed to an
 immutable git repository before any action is attempted, and `DRY_RUN=true` is the default.
@@ -16,16 +16,21 @@ immutable git repository before any action is attempted, and `DRY_RUN=true` is t
    JSON "turn" files recording exactly what data the AI saw, what prompt it received, what it
    decided, and what happened. This is the forensic record that answers "what did the AI do
    and why" indefinitely.
-2. **Human Gating** — Actions scoring below `AUTO_APPROVE_THRESHOLD` (default 95) are sent to
-   Discord as rich embeds with an approval URL. A human POSTs to approve or DELETEs to reject.
-   The session waits up to 4 hours before expiring.
-3. **Pre/Post Baseline Verification** — Before any action, VictoriaMetrics metrics are captured
+2. **Human Gating via Discord Bot** — Actions scoring below `AUTO_APPROVE_THRESHOLD` (default 95)
+   are posted to Discord as rich embeds. The bot provides `/approve`, `/reject`, `/approve-all`,
+   `/reject-all`, and `/pending` slash commands directly in the alert channel.
+3. **Repeat Offender Detection** — Each successful block increments a per-IP lifetime counter in
+   Redis (1-year TTL). Repeated offenders get escalated block durations and a permanent-block
+   recommendation for both Claude and the human reviewer.
+4. **Pre/Post Baseline Verification** — Before any action, VictoriaMetrics metrics are captured
    for the target IP. After execution, the service waits 5 minutes and re-queries to measure
    whether the action was effective.
-4. **Redis Rate Limiting** — A sliding 60-minute window prevents more than `MAX_ACTIONS_PER_HOUR`
-   live actions regardless of how many high-risk IPs appear.
-5. **pfBlockerNG Integration Stubs** — Two execution paths (XML-RPC and SSH via paramiko) are
-   wired up with clearly-marked TODO blocks. DRY_RUN mode logs the exact commands that would run.
+5. **Redis Rate Limiting** — A sliding 60-minute window prevents more than `MAX_ACTIONS_PER_HOUR`
+   automated live actions. Human `/approve-all` from Discord bypasses this cap intentionally
+   (the limit protects unattended automation, not conscious human decisions).
+6. **pfSense Integration** — Three execution paths tried in order (REST API → XML-RPC → SSH).
+   The XML-RPC path uses a raw httpx transport because pfSense prepends PHP echo output before
+   the XML-RPC XML envelope — standard `xmlrpc.client` cannot parse these responses.
 
 ---
 
@@ -41,12 +46,14 @@ automation-agent (FastAPI + APScheduler :8002)  ← poll every 10 min
     │
     ├─ Filter: score >= 80, is_known_bad_actor, not likely_false_positive
     ├─ Redis dedup check (processed recently? skip)
-    ├─ Rate limit check (>5/hour? skip)
+    ├─ In-memory dedup check (already pending? skip)
+    ├─ Rate limit check (auto-approve path: >5/hour? skip)
     │
+    ├─ Redis: get_block_count(ip) → enrich threat_data["block_count"]
     ├─ Open GAIT session → git branch automation-{ts}-{ip}
-    │   ├─ Turn 00: input.json         (threat data + config snapshot)
+    │   ├─ Turn 00: input.json         (threat data + block_count + config snapshot)
     │   ├─ Turn 01: baseline.json      (VM PromQL snapshot)
-    │   ├─ Turn 02: claude_prompt.txt  (exact prompt sent to Claude)
+    │   ├─ Turn 02: claude_prompt.txt  (exact prompt sent to Claude, inc. block history)
     │   ├─ Turn 03: proposed_action.json (Claude JSON response)
     │   ├─ Turn 04: decision.json      (dry_run / pending / auto_approve)
     │   ├─ Turn 05: execution_result.json
@@ -55,12 +62,17 @@ automation-agent (FastAPI + APScheduler :8002)  ← poll every 10 min
     │
     ├─ DRY_RUN=true → log + Discord blue embed → done
     ├─ score < 95    → Discord orange embed → park in pending_approvals{}
-    │                  POST /api/automation/approve/{id} to execute
-    └─ score >= 95   → execute immediately → wait 5 min → verify → rollback on fail
-            │
+    │                  mark_ip_processed(4h) — prevents re-alert on next poll cycle
+    │                  Discord bot: /approve|/reject|/approve-all|/reject-all|/pending
+    └─ score >= 95   → auto-execute → wait 5 min → verify → rollback on fail
+            │         increment_block_count(ip) → mark_ip_processed(block_ttl_hours)
             ▼
-    pfSense / pfBlockerNG (XML-RPC primary, SSH fallback)
-    pfctl -t pfBlockerNG_AutoAgent_v4 -T add {cidr}
+    pfSense Plus 25.11 (REST API → XML-RPC → SSH, first success wins)
+    Path A: POST /api/v2/firewall/alias/entry → POST /api/v2/firewall/apply
+    Path B: httpx → xmlrpc.php exec_php → PHP config API → write_config + filter_configure
+            (alias mode: edits AutoAgent_Block_v4 Firewall Alias directly)
+            _xmlrpc_write_lock serialises concurrent writes to prevent race condition
+    Path C: pfctl -t AutoAgent_Block_v4 -T add {cidr}  (runtime only)
 
     Prometheus metrics → scraped by VictoriaMetrics every 30s
     Grafana Infinity → /api/infinity/sessions|pending|audit
@@ -70,14 +82,14 @@ automation-agent (FastAPI + APScheduler :8002)  ← poll every 10 min
 
 ## File Inventory
 
-### New files
+### Service files
 
 ```
 services/automation-agent/
 ├── Dockerfile                         python:3.12-slim + git binary
-├── requirements.txt                   fastapi, apscheduler, gitpython, paramiko, redis, anthropic
+├── requirements.txt                   fastapi, apscheduler, gitpython, paramiko, redis, anthropic, httpx, discord.py
 └── app/
-    ├── main.py                        FastAPI app — 13 endpoints
+    ├── main.py                        FastAPI app — 11 endpoints incl. setup-pfsense
     ├── scheduler.py                   APScheduler 10-min poll + per-IP session orchestration
     ├── config.py                      Pydantic-settings env var config (all safety knobs)
     ├── state.py                       Module-level latest_report + pending_approvals dict
@@ -86,13 +98,14 @@ services/automation-agent/
     │   └── git_trail.py               GitAuditTrail + AuditSession (gitpython branch-per-session)
     ├── actions/
     │   ├── baseline.py                capture_baseline() + verify_action() via PromQL
-    │   ├── pfblocker.py               PfBlockerAction + execute/rollback (XML-RPC + SSH stubs)
-    │   ├── rate_limiter.py            Redis sliding-window rate limiter + IP dedup TTL
-    │   └── executor.py                execute_and_verify() — shared by scheduler + approve EP
+    │   ├── pfblocker.py               PfBlockerAction + execute/rollback; httpx XML-RPC transport
+    │   ├── rate_limiter.py            Sliding-window rate limiter, IP dedup TTL, block count tracking
+    │   └── executor.py                execute_and_verify() — shared by scheduler + approve endpoint
     ├── analysis/
-    │   └── claude_action.py           Action-proposal prompt builder + Claude Haiku call
+    │   └── claude_action.py           Action-proposal prompt with block history + volume flags
     └── notifications/
-        └── discord.py                 Rich embeds: approval-required + outcome (success/fail/dry)
+        ├── discord.py                 Webhook: approval-required + outcome embeds (block history shown)
+        └── discord_bot.py             Bot: /approve /reject /approve-all /reject-all /pending
 
 config/grafana/provisioning/datasources/automation-agent.yaml
 dashboards/automation/automation-agent.json
@@ -102,9 +115,10 @@ docs/PHASE5_AUTOMATION_AGENT.md  (this file)
 ### Modified files
 
 ```
-docker-compose.yml                     Added automation-agent service + automation-audit volume
-config/victoriametrics/prometheus.yml  Added automation-agent scrape job
-.env / .env.example                    Added PFSENSE_*, DRY_RUN, AUTO_*_THRESHOLD, safety vars
+docker-compose.yml                     automation-agent service + automation-audit volume
+config/victoriametrics/prometheus.yml  automation-agent scrape job
+.env / .env.example                    PFSENSE_*, DRY_RUN, AUTO_*_THRESHOLD, DISCORD_BOT_TOKEN,
+                                       REPEAT_OFFENDER_THRESHOLD, HIGH_VOLUME_THRESHOLD
 ```
 
 ---
@@ -116,10 +130,11 @@ config/victoriametrics/prometheus.yml  Added automation-agent scrape job
 | GET | `/health` | Service health, dry_run flag, config summary, rate limit status |
 | GET | `/metrics` | Prometheus metrics (scraped by VictoriaMetrics) |
 | GET | `/api/automation/report` | Full in-memory session report (last 100 sessions) |
-| GET | `/api/automation/pending` | Sessions awaiting human approval (pruning expired) |
+| GET | `/api/automation/pending` | Sessions awaiting human approval (expired ones pruned) |
 | POST | `/api/automation/approve/{id}` | Approve a pending session → execute in background |
 | DELETE | `/api/automation/approve/{id}` | Reject a pending session → no action taken |
 | GET | `/api/automation/audit` | Recent GAIT git branches summary |
+| POST | `/api/automation/setup-pfsense` | Create alias + WAN block rule in pfSense (idempotent) |
 | GET | `/api/infinity/sessions` | Recent sessions flat array (Grafana Infinity) |
 | GET | `/api/infinity/pending` | Pending approvals flat array (Grafana Infinity) |
 | GET | `/api/infinity/audit` | Audit trail branch list flat array (Grafana Infinity) |
@@ -128,18 +143,45 @@ config/victoriametrics/prometheus.yml  Added automation-agent scrape job
 
 ## Environment Variables
 
-Add to `.env` before enabling live mode. All safety variables default to the most conservative values.
-
 ### pfSense Integration
+
+**Shared (all paths)**
 
 | Variable | Default | Description |
 |---|---|---|
-| `PFSENSE_HOST` | *(empty)* | pfSense management IP (e.g. `192.168.1.1`) |
-| `PFSENSE_XMLRPC_USER` | `admin` | pfSense web UI username |
-| `PFSENSE_XMLRPC_PASS` | *(empty)* | pfSense web UI password |
-| `PFSENSE_SSH_HOST` | *(empty)* | pfSense SSH host (falls back to `PFSENSE_HOST`) |
+| `PFSENSE_HOST` | *(empty)* | pfSense management IP, optionally with port: `192.168.1.1:440` |
+| `PFSENSE_VERIFY_SSL` | `false` | `false` = accept self-signed certs |
+
+**Path A — REST API v2 (optional, preferred when available)**
+
+| Variable | Default | Description |
+|---|---|---|
+| `PFSENSE_API_KEY` | *(empty)* | API key from System > API > Keys; empty = skip |
+| `PFSENSE_FIREWALL_ALIAS` | `AutoAgent_Block_v4` | Firewall alias the agent manages |
+
+**Path B — XML-RPC (no API key required)**
+
+| Variable | Default | Description |
+|---|---|---|
+| `PFSENSE_XMLRPC_USER` | `admin` | pfSense web UI username (must be admin for exec_php) |
+| `PFSENSE_XMLRPC_PASS` | *(empty)* | pfSense web UI password; empty = skip |
+| `PFSENSE_XMLRPC_TARGET` | `alias` | `alias` = plain Firewall Alias (recommended); `pfblockerng` = pfBlockerNG custom list |
+
+**Path C — SSH emergency fallback**
+
+| Variable | Default | Description |
+|---|---|---|
+| `PFSENSE_SSH_HOST` | *(empty)* | SSH host (falls back to `PFSENSE_HOST`) |
 | `PFSENSE_SSH_USER` | `admin` | pfSense SSH username |
-| `PFSENSE_SSH_KEY_PATH` | `/app/secrets/pfsense_id_ed25519` | Path to private key inside container |
+| `PFSENSE_SSH_KEY_PATH` | *(empty)* | Path to private key inside container; empty = skip |
+
+### Discord
+
+| Variable | Default | Description |
+|---|---|---|
+| `DISCORD_WEBHOOK_URL` | *(empty)* | Incoming webhook for outcome notifications (one-way) |
+| `DISCORD_BOT_TOKEN` | *(empty)* | Bot token for slash commands. Empty = webhook-only mode |
+| `DISCORD_GUILD_ID` | `0` | Guild (server) ID for instant slash command sync. `0` = global (~1h delay) |
 
 ### Safety Controls
 
@@ -148,48 +190,265 @@ Add to `.env` before enabling live mode. All safety variables default to the mos
 | `DRY_RUN` | `true` | **Master kill-switch.** `true` = log everything, touch nothing |
 | `AUTO_ACTION_THRESHOLD` | `80` | Minimum `composite_score` to even consider a block |
 | `AUTO_APPROVE_THRESHOLD` | `95` | Score above which Discord approval is skipped |
-| `MAX_ACTIONS_PER_HOUR` | `5` | Hard cap on live actions per rolling 60-minute window |
-| `BLOCK_TTL_HOURS` | `24` | Temporary block duration (pfBlockerNG list TTL) |
+| `MAX_ACTIONS_PER_HOUR` | `5` | Hard cap on **automated** live actions per 60-min window |
+| `BLOCK_TTL_HOURS` | `24` | Temporary block duration (hours) |
+| `REPEAT_OFFENDER_THRESHOLD` | `5` | Lifetime blocks before flagging for permanent block |
+| `HIGH_VOLUME_THRESHOLD` | `50` | Events/hour above which aggressive flag is raised |
 | `POLL_INTERVAL_SECONDS` | `600` | How often to poll threat-intel (10 minutes) |
 
 > **Setting `AUTO_APPROVE_THRESHOLD=101`** effectively disables auto-approve entirely — every
-> qualifying action requires a human to POST the approval URL.
+> qualifying action requires a human to use the Discord bot slash commands or POST the approval URL.
 
 ---
 
 ## Safety Model
-
-The service is designed to be safe by default and require explicit opt-in for each escalation step:
 
 ```
 DRY_RUN=true (default)
     └─ Logs everything. Discord blue embed. No pfSense changes. Ever.
 
 DRY_RUN=false + score in [80, 95)
-    └─ Discord orange embed with approval URL.
-       Human must POST /api/automation/approve/{id}.
-       Session expires after 4 hours with no action if not approved.
+    └─ Discord orange embed sent to approval channel.
+       mark_ip_processed(4h) — prevents re-alerting this IP on every poll cycle.
+       Discord bot: /approve, /reject, /approve-all, /reject-all, /pending.
+       Human approval fires execute_and_verify() in background (bypasses rate limit).
+       Session expires after 4 hours with no action if ignored.
 
 DRY_RUN=false + score >= 95 (auto-approve)
-    └─ Action executes automatically.
+    └─ Action executes automatically (rate-limited by MAX_ACTIONS_PER_HOUR).
        Baseline captured → action applied → 5 min wait → metrics verified.
        Rollback attempted if execution fails.
        Discord green/red outcome embed always sent.
 
 All paths:
     └─ GAIT git branch committed at every step.
-       Redis rate limit enforced (MAX_ACTIONS_PER_HOUR).
-       IP dedup TTL prevents re-processing the same IP within 4h (no-action) or BLOCK_TTL_HOURS (block).
+       block_count incremented in Redis after every live block.
+       IP dedup TTL prevents re-processing (4h for pending, BLOCK_TTL_HOURS for executed).
 ```
 
 ### False Positive Guards
 
-Claude's action-proposal prompt includes hard constraints Claude must follow:
+Claude's action-proposal prompt includes hard constraints:
 - `likely_false_positive = true` → must return `type: "no_action"`
 - Score below threshold → must return `type: "no_action"`
 - RFC 1918 private IPs → never block
 - Known CDN/infrastructure orgs (Cloudflare, Akamai, Google, Apple, Microsoft) → never block unless `abuse_score > 80`
 - Outbound traffic → only propose block if score > 85 AND abuse score > 60
+
+---
+
+## pfSense Integration
+
+Targets **pfSense Plus 25.11**. Three paths tried in order; the first to succeed wins. Each path
+is skipped silently if its required credentials are not configured.
+
+### One-time setup (run once before going live)
+
+```bash
+curl -s -X POST http://localhost:8002/api/automation/setup-pfsense | python3 -m json.tool
+# → {"alias": "created", "rule": "created", "success": true}
+# → {"alias": "exists",  "rule": "exists",  "success": true}  (idempotent)
+```
+
+This endpoint uses XML-RPC exec_php to:
+1. Create the `AutoAgent_Block_v4` Firewall Alias (Type: Host) if it doesn't exist
+2. Insert a WAN block rule with Source = `AutoAgent_Block_v4` before the first existing WAN rule
+
+Safe to call multiple times. Requires `PFSENSE_XMLRPC_PASS` and `PFSENSE_HOST`.
+
+### Path A — REST API v2 (optional, preferred when available)
+
+File: `services/automation-agent/app/actions/pfblocker.py` → `_rest_api_add()`
+
+Requires `PFSENSE_API_KEY`. Adds an IP to a Firewall Alias via the pfSense Plus REST API.
+
+```
+POST /api/v2/firewall/alias/entry   Authorization: Bearer {key}
+POST /api/v2/firewall/apply
+```
+
+Manual setup (if not using the setup endpoint):
+```
+1. System > API > Keys  →  Add key, assign to admin user
+2. Firewall > Aliases   →  Add: Name=AutoAgent_Block_v4, Type=Host(s)
+3. Firewall > Rules     →  Add block rule: Source = AutoAgent_Block_v4, placed above pass rules
+```
+
+### Path B — XML-RPC exec_php (no API key required)
+
+File: `services/automation-agent/app/actions/pfblocker.py` → `_xmlrpc_add()`
+
+Requires `PFSENSE_XMLRPC_PASS`. Connects to pfSense's `/xmlrpc.php` endpoint and runs PHP
+code directly via the `pfsense.exec_php` method.
+
+**Why httpx instead of `xmlrpc.client`**: pfSense prepends any PHP `echo` output to the HTTP
+response body *before* the XML-RPC envelope. `xmlrpc.client` tries to parse the entire response
+as XML and fails at byte 0. The `_xmlrpc_exec_php()` function uses httpx with HTTP Basic Auth,
+locates the `<?xml` offset in the response, splits off the PHP echo output, then checks the
+envelope for fault codes manually. This also avoids URL-encoding issues with special characters
+(e.g. `@`) in passwords.
+
+**Why HTTP Basic Auth instead of URL-embedded credentials**: Credentials embedded in the URL
+(`user:pass@host`) break with passwords containing `@`, `#`, or other reserved characters. httpx's
+`auth=` parameter handles this correctly regardless of password content.
+
+**Two sub-modes** controlled by `PFSENSE_XMLRPC_TARGET`:
+
+| Mode | What it does | Requires |
+|---|---|---|
+| `alias` (default) | Adds IP to a plain Firewall Alias via PHP config API (`config_set_path`, `write_config`, `filter_configure`). Persistent across reboots, no pfBlockerNG. | `AutoAgent_Block_v4` alias + block rule (created by setup endpoint) |
+| `pfblockerng` | Appends CIDR to `/var/db/pfblockerng/custom/{list}.txt` and calls `pfblockerng_sync_cron()`. | pfBlockerNG installed, list named in `PFSENSE_FIREWALL_ALIAS` |
+
+**Concurrent write serialization**: `_xmlrpc_write_lock` (an `asyncio.Lock`) serialises all alias
+add and delete operations. Without this, `/approve-all` with many IPs would fire concurrent
+read-modify-write cycles that all read the same initial alias state — last writer wins, others'
+IPs are lost.
+
+Minimal `.env` to activate alias mode:
+```bash
+PFSENSE_HOST=192.168.1.1          # or 192.168.1.1:440 for non-standard GUI port
+PFSENSE_XMLRPC_USER=admin         # must be admin for exec_php
+PFSENSE_XMLRPC_PASS=your_password
+PFSENSE_XMLRPC_TARGET=alias
+DRY_RUN=false
+```
+
+### Path C — SSH pfctl (emergency fallback)
+
+File: `services/automation-agent/app/actions/pfblocker.py` → `_ssh_add()`
+
+Requires `PFSENSE_SSH_KEY_PATH`. Connects via paramiko and runs:
+```bash
+pfctl -t AutoAgent_Block_v4 -T add {cidr}
+```
+**Runtime-only** — does not survive a reboot or pfSense config reload. Intended for emergency
+use when both REST API and XML-RPC are unavailable.
+
+SSH key setup:
+```bash
+ssh-keygen -t ed25519 -f pfsense_id_ed25519 -C "convergence-autoagent" -N ""
+# Add public key: System > User Manager > admin > Authorized SSH Keys
+# Mount private key via docker-compose.yml volumes:
+#   - ./secrets/pfsense_id_ed25519:/app/secrets/pfsense_id_ed25519:ro
+```
+
+---
+
+## Discord Bot
+
+File: `services/automation-agent/app/notifications/discord_bot.py`
+
+The bot connects via the Discord Gateway (persistent outbound WebSocket), so no public IP or
+inbound HTTPS is required — works in home-lab and NAT environments.
+
+### Slash commands
+
+| Command | Description |
+|---|---|
+| `/pending` | List all unexpired pending approvals with session IDs, scores, and expiry times |
+| `/approve <session_id>` | Approve and execute a specific pending session |
+| `/reject <session_id>` | Reject a specific pending session — no pfSense changes |
+| `/approve-all` | Approve every unexpired pending session immediately (no rate limit cap) |
+| `/reject-all` | Reject every unexpired pending session at once |
+
+### Rate limit behaviour
+
+`/approve-all` bypasses `MAX_ACTIONS_PER_HOUR`. The rate limit exists to protect the unattended
+auto-approve path from runaway automation — when a human explicitly issues `/approve-all` they are
+making a conscious decision and the cap is counterproductive. The `record_action_taken()` call
+inside `execute_and_verify()` still fires for metrics accuracy.
+
+### Setup
+
+```
+1. https://discord.com/developers/applications → New Application → Bot tab
+2. Bot tab → Reset Token → copy to DISCORD_BOT_TOKEN in .env
+3. OAuth2 → URL Generator → scopes: bot + applications.commands
+   Permissions: Send Messages, Use Slash Commands
+   → copy invite URL → add bot to your server
+4. Set DISCORD_GUILD_ID to your server ID for instant slash command sync
+   (Enable Developer Mode: User Settings → Advanced → right-click server → Copy Server ID)
+```
+
+---
+
+## Repeat Offender & Block Count Tracking
+
+File: `services/automation-agent/app/actions/rate_limiter.py`
+
+Every successful live block increments a per-IP counter in Redis DB 1:
+
+```
+Key:   automation:block_count:{ip}
+Type:  integer (INCR)
+TTL:   365 days (1 year)
+```
+
+The count is fetched before Claude's analysis in each poll cycle (`scheduler.py`) and added to
+`threat_data["block_count"]`. Two thresholds drive escalation:
+
+| Threshold | Variable | Default | Effect |
+|---|---|---|---|
+| Lifetime blocks | `REPEAT_OFFENDER_THRESHOLD` | `5` | Claude instructed to use 168h duration and recommend permanent block. Discord shows 🔴 REPEAT OFFENDER. |
+| Events per hour | `HIGH_VOLUME_THRESHOLD` | `50` | Same escalation, triggered by current-hour connection volume regardless of history. |
+
+**Why these defaults**: 5 lifetime blocks means the IP has returned on 5 separate days after
+each previous 24h block — clearly a persistent threat. 50 hourly events indicates an active,
+aggressive scan in progress. Either signal is sufficient to recommend permanent listing.
+
+Claude's action prompt surfaces both signals explicitly:
+```
+Block history:   ⚠️ REPEAT OFFENDER — blocked 7 time(s) previously.
+                 Consider recommending permanent block list addition.
+Events (1h):     ⚠️ HIGH VOLUME — 73 events in the last hour.
+                 Actively hammering the network. Consider recommending permanent block.
+```
+
+The outcome notification in Discord also calls out repeat offenders:
+```
+✅ Action Completed — 1.2.3.4
+Added `1.2.3.4/32` to `AutoAgent_Block_v4` (TTL=168h ...) — ⚠️ 6x blocked total
+(repeat offender — consider adding to a permanent block list)
+```
+
+---
+
+## Claude Action Proposal
+
+File: `services/automation-agent/app/analysis/claude_action.py`
+
+**Model:** `claude-haiku-4-5-20251001`
+**Max tokens:** 800
+
+**Input context provided to Claude:**
+- Threat intel data (score, org, country, abuse score, OTX pulses, GreyNoise class)
+- Block history: lifetime block count with repeat-offender flag if ≥ `REPEAT_OFFENDER_THRESHOLD`
+- Hourly events with high-volume flag if ≥ `HIGH_VOLUME_THRESHOLD`
+- Pre-action VictoriaMetrics baseline metrics
+- Excerpt from threat-intel narrative (executive summary)
+- Safety rules (hard constraints listed explicitly)
+- Duration guidelines (first sighting vs persistent vs repeat offender)
+
+**Output schema:**
+```json
+{
+  "type": "pfblocker_add" | "no_action",
+  "target_list": "AutoAgent_Block_v4",
+  "value": "x.x.x.x/32",
+  "reason": "concise reason citing specific intel data and block history",
+  "duration_hours": 24,
+  "confidence": "high" | "medium" | "low",
+  "notes": "any caveats or recommended follow-up steps"
+}
+```
+
+**Duration escalation logic:**
+- Borderline score: 12 hours
+- First sighting, high score: 24 hours
+- Persistent bad actor (OTX pulses > 5, abuse > 70): 72 hours
+- Repeat offender (≥5 blocks) OR high volume (≥50/h): 168 hours + `recommend_permanent_block: true` in notes
+
+The raw prompt text is committed verbatim to the GAIT audit trail as `02_claude_prompt.txt`.
 
 ---
 
@@ -202,17 +461,17 @@ mounted at `/app/audit-repo` inside the container.
 
 ```
 automation-audit/ (git repo)
-├── README.md                         Repo documentation + query examples
+├── README.md
 └── sessions/
     └── automation-20260225-143021-1-2-3-4/
-        ├── 00_input.json             Threat intel data + config snapshot that triggered session
+        ├── 00_input.json             Threat intel data + block_count + config snapshot
         ├── 01_baseline.json          VictoriaMetrics metrics snapshot before any action
         ├── 02_claude_prompt.txt      Exact text prompt sent to Claude (verbatim)
         ├── 03_proposed_action.json   Claude's structured JSON response
-        ├── 04_decision.json          dry_run / pending / auto_approve decision + rationale
-        ├── 05_execution_result.json  pfSense action result (method, success, message, rollback_cmd)
-        ├── 06_verification.json      Post-action metric diff (before/after/pct_change per metric)
-        └── 07_outcome.json           Final sealed outcome (success/fail + timestamp)
+        ├── 04_decision.json          dry_run / pending / auto_approve decision
+        ├── 05_execution_result.json  pfSense action result (method, success, message)
+        ├── 06_verification.json      Post-action metric diff (before/after/pct_change)
+        └── 07_outcome.json           Final sealed outcome with timestamp
 ```
 
 ### Inspecting the audit trail
@@ -222,83 +481,17 @@ automation-audit/ (git repo)
 docker exec convergence-automation-agent \
   git -C /app/audit-repo branch -a
 
-# Review a specific session's turns
+# Review a specific session
 docker exec convergence-automation-agent \
   git -C /app/audit-repo checkout automation-20260225-143021-1-2-3-4
 
-docker exec convergence-automation-agent \
-  ls /app/audit-repo/sessions/automation-20260225-143021-1-2-3-4/
-
-# Read what Claude proposed
+# Read what Claude proposed (including block history it saw)
 docker exec convergence-automation-agent \
   cat /app/audit-repo/sessions/automation-20260225-143021-1-2-3-4/03_proposed_action.json
 
 # See the full decision chain
 docker exec convergence-automation-agent \
   git -C /app/audit-repo log --oneline automation-20260225-143021-1-2-3-4
-```
-
----
-
-## pfSense Integration
-
-### Current state: stubs ready, credentials not yet wired
-
-The service has two execution paths. Both are implemented as stub functions with detailed
-TODO blocks explaining exactly what to add. DRY-run mode logs the exact `pfctl` command
-that would execute.
-
-**Target pfBlockerNG list:** `pfBlockerNG_AutoAgent_v4`
-
-This list must be created in pfBlockerNG before enabling live mode:
-> pfBlockerNG → IP → IPv4 → Custom → Add → Name: `pfBlockerNG_AutoAgent_v4`
-
-### Path A — XML-RPC (preferred)
-
-File: `services/automation-agent/app/actions/pfblocker.py:_xmlrpc_add()`
-
-Uses pfSense's built-in XML-RPC interface at `/xmlrpc.php`. Calls `exec_php` to append
-the CIDR to `/var/db/pfblockerng/custom/pfBlockerNG_AutoAgent_v4.txt` and trigger
-`pfb_sync()`. Requires `PFSENSE_XMLRPC_PASS` to be set.
-
-### Path B — SSH fallback (paramiko)
-
-File: `services/automation-agent/app/actions/pfblocker.py:_ssh_add()`
-
-Connects via SSH and runs:
-```bash
-pfctl -t pfBlockerNG_AutoAgent_v4 -T add {cidr}
-```
-This adds to the runtime pf table immediately (effective in < 1 second) but does **not**
-persist across pfBlockerNG reloads. Best for short-TTL emergency blocks.
-
-### SSH key setup
-
-```bash
-# Generate a dedicated key (do not reuse your admin key)
-ssh-keygen -t ed25519 -f pfsense_autoagent_ed25519 -C "convergence-autoagent" -N ""
-
-# Add the public key to pfSense:
-# System > User Manager > admin > Authorized SSH Keys
-cat pfsense_autoagent_ed25519.pub
-
-# Mount the private key into the container via docker-compose.yml:
-# volumes:
-#   - ./secrets/pfsense_autoagent_ed25519:/app/secrets/pfsense_id_ed25519:ro
-```
-
-### Enabling live mode
-
-```bash
-# 1. Create the pfBlockerNG list in the pfSense UI
-# 2. Set credentials in .env:
-PFSENSE_HOST=192.168.1.1
-PFSENSE_XMLRPC_PASS=your_pfsense_password
-DRY_RUN=false
-
-# 3. Rebuild and restart
-docker compose build automation-agent
-docker compose up -d --force-recreate automation-agent
 ```
 
 ---
@@ -325,73 +518,11 @@ Datasources: `AutomationAgent` (Infinity UID `automation-agent`) + VictoriaMetri
 
 | Row | Panels | Datasource |
 |---|---|---|
-| Summary | Total actions by status (stat), pending count (stat), last poll (stat), dry-run indicator | VictoriaMetrics + Infinity |
+| Summary | Total actions by status (stat), pending count, last poll, dry-run indicator | VictoriaMetrics + Infinity |
 | Recent Sessions | Sessions table (session_id, ip, score, action, status, timestamp) | Infinity |
-| Pending Approvals | Pending table with approve URL, expiry countdown | Infinity |
+| Pending Approvals | Pending table with session ID, expiry countdown | Infinity |
 | Metrics Timeseries | `automation_actions_total` by status, session duration histogram | VictoriaMetrics |
 | Audit Trail | GAIT branch list (branch name, last commit message, committed_at) | Infinity |
-
----
-
-## Claude Action Proposal
-
-The automation agent uses a separate, tighter prompt than the threat-intel narrative generator.
-It asks for ONE structured JSON action and enforces hard safety rules.
-
-**Model:** `claude-haiku-4-5-20251001`
-**Max tokens:** 800
-
-**Input context provided to Claude:**
-- Full threat intel data (score, org, country, abuse score, OTX pulses, GreyNoise class)
-- Pre-action VictoriaMetrics baseline metrics
-- Excerpt from threat-intel narrative (executive summary)
-- Safety rules (hard constraints listed explicitly)
-- Duration guidelines (persistent vs first-sighting)
-
-**Output schema:**
-```json
-{
-  "type": "pfblocker_add" | "no_action",
-  "target_list": "pfBlockerNG_AutoAgent_v4",
-  "value": "x.x.x.x/32",
-  "reason": "concise reason citing specific intel data",
-  "duration_hours": 24,
-  "confidence": "high" | "medium" | "low",
-  "notes": "any caveats or recommended follow-up"
-}
-```
-
-The raw prompt text is committed verbatim to the GAIT audit trail as `02_claude_prompt.txt` so
-there is a permanent record of exactly what Claude was asked.
-
----
-
-## Discord Approval Flow
-
-```
-1. Agent identifies qualifying IP (score ≥ 80, not FP)
-2. Agent asks Claude for action proposal → pfblocker_add
-3. Score < 95 → send "Approval Required" orange embed to Discord:
-      ┌─────────────────────────────────────────────────┐
-      │ ⚠️ Automation Approval Required — 1.2.3.4        │
-      │ Composite Score: 87/100  Threat Level: HIGH      │
-      │ Organization: Tamatiya EOOD  Country: BG         │
-      │ Proposed Action: pfblocker_add                   │
-      │ CIDR to Block: 1.2.3.4/32                        │
-      │ Reason: AbuseIPDB 91%, 8 OTX pulses, GN=malicious│
-      │ To Approve: POST http://host:8002/api/automation/ │
-      │             approve/20260225-143021-1-2-3-4       │
-      └─────────────────────────────────────────────────┘
-4. Human reviews threat data independently, then:
-      Approve: curl -X POST http://localhost:8002/api/automation/approve/20260225-...
-      Reject:  curl -X DELETE http://localhost:8002/api/automation/approve/20260225-...
-5. On approve: execution starts in background → outcome embed sent
-6. Session expires after 4 hours with no action if ignored
-```
-
-> **Discord bots vs webhooks**: Discord webhooks are one-directional. The approval mechanism
-> uses a REST endpoint on the automation-agent itself — not a Discord reply. A future iteration
-> could add a Discord bot to handle `/approve session_id` slash commands in-channel.
 
 ---
 
@@ -400,8 +531,12 @@ there is a permanent record of exactly what Claude was asked.
 ### First-time setup
 
 ```bash
-# 1. Ensure ANTHROPIC_API_KEY and DISCORD_WEBHOOK_URL are set in .env
-# 2. Build and start (DRY_RUN=true is the default)
+# 1. Set required vars in .env:
+#    ANTHROPIC_API_KEY, DISCORD_WEBHOOK_URL, DISCORD_BOT_TOKEN, DISCORD_GUILD_ID
+#    PFSENSE_HOST, PFSENSE_XMLRPC_USER, PFSENSE_XMLRPC_PASS
+#    DRY_RUN=false (when ready for live mode)
+
+# 2. Build and start
 docker compose up -d --build automation-agent
 
 # 3. Restart VictoriaMetrics to pick up new scrape job
@@ -410,7 +545,10 @@ docker compose restart victoriametrics
 # 4. Force-recreate Grafana to load new datasource + dashboard
 docker compose up -d --force-recreate grafana
 
-# 5. Verify service health
+# 5. Create pfSense alias + block rule (run once)
+curl -s -X POST http://localhost:8002/api/automation/setup-pfsense | python3 -m json.tool
+
+# 6. Verify health
 curl http://localhost:8002/health | python3 -m json.tool
 ```
 
@@ -418,8 +556,9 @@ curl http://localhost:8002/health | python3 -m json.tool
 
 | Change | Command |
 |---|---|
-| Python code | `docker compose build automation-agent && docker compose up -d --force-recreate automation-agent` |
-| Safety settings (DRY_RUN, thresholds) | `docker compose up -d --force-recreate automation-agent` |
+| Python code | `docker compose build automation-agent && docker compose up -d automation-agent` |
+| Safety settings (DRY_RUN, thresholds) | `docker compose restart automation-agent` |
+| `.env` credentials | `docker compose restart automation-agent` |
 | Dashboard JSON | Auto-reloads in 30 seconds — no restart needed |
 | Datasource YAML | `docker compose up -d --force-recreate grafana` |
 
@@ -430,12 +569,12 @@ curl http://localhost:8002/health | python3 -m json.tool
 ```bash
 # Service health + config summary
 curl http://localhost:8002/health | python3 -m json.tool
-# → dry_run: true, audit_trail_initialized: true, pending_approvals: 0
+# → dry_run: false, discord_configured: true, pfsense_configured: true
 
-# Check first poll ran (45s after startup)
+# Check poll ran (45s after startup)
 docker logs convergence-automation-agent --tail 30
 
-# Pending approvals (should be empty in DRY_RUN)
+# Pending approvals
 curl http://localhost:8002/api/automation/pending | python3 -m json.tool
 
 # Recent sessions
@@ -444,6 +583,10 @@ curl http://localhost:8002/api/automation/report | python3 -m json.tool
 # Prometheus metrics being scraped
 curl -s 'http://localhost:8428/api/v1/query?query=automation_actions_total' | \
   python3 -c "import sys,json; [print(r['metric'], r['value'][1]) for r in json.load(sys.stdin)['data']['result']]"
+
+# Block counts in Redis (inspect repeat offenders)
+docker exec convergence-redis redis-cli -n 1 KEYS 'automation:block_count:*'
+docker exec convergence-redis redis-cli -n 1 GET 'automation:block_count:1.2.3.4'
 
 # GAIT audit branches
 docker exec convergence-automation-agent \
@@ -460,85 +603,136 @@ print(f'Actions this hour: {r[\"actions_last_hour\"]}/{r[\"max_actions_per_hour\
 
 ## Troubleshooting
 
+### Discord alerts firing repeatedly for the same IP
+
+**Cause**: The `mark_ip_processed()` call was absent from the pending-approval path in early
+versions. Each 10-minute poll cycle would re-evaluate already-pending IPs and send a new alert.
+
+**Fixed in current version**: `mark_ip_processed(ip, ttl_hours=4)` is called immediately after
+adding a session to `pending_approvals`. An in-memory dedup check (`already_pending`) also
+catches the case where Redis keys are cleared by a container restart.
+
+**If still occurring after update**: check that the container is running the latest image:
+```bash
+docker compose build automation-agent && docker compose up -d automation-agent
+```
+
+---
+
+### `/approve-all` only adds 1 of N IPs to pfSense alias
+
+**Cause**: Concurrent `execute_and_verify()` tasks all called `_xmlrpc_alias_add()` simultaneously.
+Each independently read the same initial alias state from pfSense, added its one IP, and wrote
+back — last writer wins, others' additions are discarded.
+
+**Fixed in current version**: `_xmlrpc_write_lock` (module-level `asyncio.Lock`) serialises all
+alias add and delete operations so each read-modify-write cycle completes fully before the next begins.
+
+---
+
+### "Setup failed: timed out" from setup endpoint
+
+**Cause**: `PFSENSE_HOST` is unreachable. pfSense may not have a firewall rule allowing access
+from the automation-agent container's host IP on the GUI port.
+
+**Fix**:
+1. Verify the port: `curl -k https://192.168.1.1/xmlrpc.php` (default 443; may be 440 or custom)
+2. Set `PFSENSE_HOST=192.168.1.1:440` if using a non-standard port
+3. Add a pfSense firewall rule allowing HTTPS from the agent host IP
+4. Test with: `curl -k -u admin:pass -X POST https://192.168.1.1:440/xmlrpc.php`
+
+---
+
+### "Authentication failed" from setup endpoint
+
+**Cause A**: Wrong username. XML-RPC exec_php requires the `admin` user (not a custom account).
+Set `PFSENSE_XMLRPC_USER=admin`.
+
+**Cause B**: Wrong password. Verify against the pfSense web UI login. Note: the XML-RPC path uses
+HTTP Basic Auth via httpx, so special characters (`@`, `#`, etc.) in passwords are handled correctly.
+
+---
+
+### "not well-formed (invalid token)" XML parse error
+
+This error should not appear in the current version. It was caused by pfSense prepending PHP echo
+output before the XML-RPC envelope, which broke `xmlrpc.client`. The current `_xmlrpc_exec_php()`
+function uses httpx and manual XML extraction.
+
+If it reappears: check for PHP warnings/errors being echoed by pfSense before the XML response.
+The function splits on `<?xml` and only parses from that offset forward.
+
+---
+
+### "Alias 'X' not found in pfSense config"
+
+**Cause**: The alias name in `.env` (`PFSENSE_FIREWALL_ALIAS`) doesn't match what exists in pfSense, or the alias hasn't been created yet.
+
+**Fix**: Run the setup endpoint once:
+```bash
+curl -s -X POST http://localhost:8002/api/automation/setup-pfsense | python3 -m json.tool
+```
+This creates `AutoAgent_Block_v4` (or whatever `PFSENSE_FIREWALL_ALIAS` is set to) idempotently.
+
+---
+
 ### No sessions appearing after startup
 
-**Cause A**: threat-intel service hasn't completed its first enrichment cycle yet (runs ~45s
-after startup). The automation-agent also waits 45s before first poll.
+**Cause A**: threat-intel service hasn't completed its first enrichment cycle (runs ~45s after
+startup). The automation-agent also waits 45s before its first poll.
 
-**Check**: `curl http://localhost:8001/health` → `report_available` must be `true`
+**Check**: `curl http://localhost:8001/health` — `report_available` must be `true`.
 
 **Cause B**: No IPs qualify — all scores are below `AUTO_ACTION_THRESHOLD=80`.
 
-**Check**: `curl http://localhost:8001/api/infinity/blocked_ips | python3 -c "import sys,json; print(max(r['score'] for r in json.load(sys.stdin)))"` — compare to threshold.
+**Check**: `curl http://localhost:8001/api/infinity/blocked_ips | python3 -c "import sys,json; print(max(r['score'] for r in json.load(sys.stdin)))"`
+
+---
+
+### Approval session not found (404)
+
+**Cause A**: Session expired (4-hour TTL). Check `/api/automation/pending` for current sessions.
+
+**Cause B**: Session was already approved or rejected.
+
+**Cause C**: Service restarted — `pending_approvals` is in-memory. A restart clears all pending
+sessions. The next poll cycle will re-evaluate the same IPs and create new sessions (with new
+session IDs) thanks to `mark_ip_processed` — the re-evaluation triggers after the 4h TTL expires.
 
 ---
 
 ### `audit_trail_initialized: false` in /health
 
-**Cause**: Git initialization failed. The audit volume may have a permissions issue or the
-git binary is missing from the container.
+**Cause**: Git binary missing or audit volume permissions issue.
 
-**Check**: `docker logs convergence-automation-agent | grep -i "GAIT"`
+**Check**: `docker exec convergence-automation-agent git version`
 
-**Fix**: `docker exec convergence-automation-agent git version` — should print `git version 2.x.x`.
-If missing: `docker compose build --no-cache automation-agent` (the Dockerfile installs git via apt).
-
----
-
-### "Both execution methods failed" in logs
-
-**Cause**: `DRY_RUN=false` is set but neither XML-RPC nor SSH stubs are implemented yet.
-
-**Fix**: Keep `DRY_RUN=true` (the default) until the TODO blocks in `pfblocker.py` are filled
-with real credentials and tested. The stubs raise `NotImplementedError` by design.
-
----
-
-### Approval session not found (404) when POSTing to approve
-
-**Cause A**: The session expired (4-hour TTL). Check `/api/automation/pending` for current sessions.
-
-**Cause B**: The session was already approved or rejected.
-
-**Cause C**: The service restarted — `pending_approvals` is an in-memory dict, not Redis-persisted.
-A restart clears all pending sessions. (Future improvement: persist pending sessions to Redis.)
-
----
-
-### Discord embeds not arriving
-
-**Cause A**: `DISCORD_WEBHOOK_URL` is empty or incorrect.
-**Check**: `curl http://localhost:8002/health | python3 -c "import sys,json; print(json.load(sys.stdin)['discord_configured'])"`
-
-**Cause B**: `DRY_RUN=true` — in dry-run mode a Discord blue embed IS sent (to confirm the
-agent is alive and finding threats). If even the dry-run embed is missing, check the webhook URL.
+**Fix**: `docker compose build --no-cache automation-agent` (Dockerfile installs git via apt).
 
 ---
 
 ## Known Limitations
 
-- **`pending_approvals` is in-memory**: A container restart clears all pending sessions.
-  Future improvement: persist to Redis with TTL keys.
-- **One-directional Discord**: Approvals require a curl/HTTP call to the API, not a Discord reply.
-  Future improvement: add a Discord bot with slash commands.
-- **pfBlockerNG stubs**: XML-RPC and SSH paths raise `NotImplementedError`. Set `DRY_RUN=false`
-  only after implementing the TODO blocks in `pfblocker.py` with real pfSense credentials.
-- **SSH adds are not persistent**: SSH `pfctl -T add` writes to the runtime pf table, which
-  is cleared on pfBlockerNG reload. XML-RPC writes to the list file and triggers a pfB sync,
-  making the block persistent across reloads.
-- **Verification is informational**: Post-action metric comparison is recorded in the audit
-  trail but does not trigger rollback on its own. pfBlockerNG blocks may *decrease* the block
-  event count (pfB drops before pf logs), which looks like "not effective" but is correct.
+- **`pending_approvals` is in-memory**: A container restart clears all pending sessions. On the
+  next poll cycle (after the 4h `mark_ip_processed` TTL expires), the same IPs will generate fresh
+  sessions with new session IDs. Future improvement: persist to Redis with TTL keys.
+- **SSH fallback is runtime-only**: `pfctl -T add` entries do not survive a reboot or pfSense
+  config reload. SSH is intended for emergency use; XML-RPC alias mode is the recommended path.
+- **Verification is informational**: Post-action metric comparison is recorded in the audit trail
+  but does not trigger automatic rollback. pfBlockerNG blocks may *decrease* block event count
+  (pfB drops before pf logs), which looks like "not effective" but is the correct outcome.
+- **Permanent block list**: Repeat-offender detection flags IPs for permanent listing and
+  recommends it in Claude's output and Discord notifications, but does not automatically manage
+  a separate permanent alias. That step requires manual action in pfSense.
 
 ---
 
 ## Next Steps (Phase 6 ideas)
 
-- **Implement real pfSense XML-RPC** — Fill in `_xmlrpc_add()` in `pfblocker.py` with live
-  credentials; test against a pfSense lab instance; set `DRY_RUN=false`.
-- **Persist pending approvals in Redis** — Survive container restarts; add expiry scanning.
-- **Discord bot approval** — Replace curl-based approval with a Discord slash command bot
-  that can approve sessions directly from the alert channel.
+- **Persist pending approvals in Redis** — Survive container restarts cleanly; add expiry scanning.
+- **Permanent block alias** — Add a second pfSense alias (`AutoAgent_Permanent_Block_v4`) and a
+  `/promote-permanent` Discord command / API endpoint that moves a repeat offender from the temp
+  alias to the permanent one.
 - **LangGraph multi-step agent** — The current `poll_cycle → propose_action → execute_and_verify`
   flow maps directly to a LangGraph state machine. Upgrade for multi-hop reasoning (e.g.:
   "check VirusTotal → check NVD for device CVEs → propose action → verify").

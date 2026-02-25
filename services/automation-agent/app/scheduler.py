@@ -31,6 +31,7 @@ from app.actions.rate_limiter import (
     check_rate_limit,
     is_ip_already_processed,
     mark_ip_processed,
+    get_block_count,
 )
 from app.analysis.claude_action import build_action_prompt, propose_action
 from app.audit.git_trail import trail
@@ -41,6 +42,7 @@ import app.metrics as m
 logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
+_loop: asyncio.AbstractEventLoop | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +185,15 @@ async def process_ip(threat_data: dict[str, Any]) -> None:
         logger.debug("IP %s already processed recently; skipping", ip)
         return
 
+    # In-memory check: don't create a second pending session for the same IP
+    # (covers container-restart scenarios where Redis keys were wiped)
+    already_pending = any(
+        data.get("ip") == ip for data in state.pending_approvals.values()
+    )
+    if already_pending:
+        logger.debug("IP %s already awaiting approval in memory; skipping", ip)
+        return
+
     # ---- Rate limiting -----------------------------------------------
     if not await check_rate_limit():
         logger.warning(
@@ -235,6 +246,9 @@ async def process_ip(threat_data: dict[str, Any]) -> None:
         # Turn 01: baseline metrics ------------------------------------
         baseline = await capture_baseline(ip)
         record("baseline", baseline)
+
+        # Enrich threat_data with block history before Claude sees it
+        threat_data["block_count"] = await get_block_count(ip)
 
         # Turn 02: Claude prompt (record exact text for audit) ---------
         narrative = threat_data.get("narrative", "")
@@ -337,6 +351,9 @@ async def process_ip(threat_data: dict[str, Any]) -> None:
             m.automation_pending_approvals.set(len(state.pending_approvals))
             m.automation_actions_total.labels(status="pending").inc()
             _update_state(session_id, ip, threat_data, proposed, None, "pending")
+            # Mark processed so subsequent poll cycles don't re-alert this IP
+            # while it sits in the approval queue (TTL matches the 4h expiry above)
+            await mark_ip_processed(ip, ttl_hours=4)
             # Leave session open — it will be re-opened by the approval endpoint
             return
 
@@ -388,9 +405,18 @@ async def poll_cycle() -> None:
 
 
 def _job_wrapper() -> None:
-    """Synchronous bridge for APScheduler → async poll_cycle."""
+    """Synchronous bridge for APScheduler background thread → async poll_cycle.
+
+    Submits poll_cycle() to the uvicorn event loop via run_coroutine_threadsafe
+    so all async code (Redis, httpx, etc.) runs on the same loop that created
+    those clients. Never calls asyncio.run() which would spin up a second loop.
+    """
+    if _loop is None:
+        logger.error("Event loop not captured; skipping poll")
+        return
+    future = asyncio.run_coroutine_threadsafe(poll_cycle(), _loop)
     try:
-        asyncio.run(poll_cycle())
+        future.result(timeout=max(settings.poll_interval_seconds - 30, 60))
     except Exception:
         logger.exception("Automation poll job raised at the top level")
 
@@ -400,10 +426,11 @@ def _job_wrapper() -> None:
 # ---------------------------------------------------------------------------
 
 
-def start_scheduler() -> None:
-    global _scheduler
+def start_scheduler(loop: asyncio.AbstractEventLoop) -> None:
+    global _scheduler, _loop
     if _scheduler is not None:
         return
+    _loop = loop
 
     # Initialise the GAIT audit repository
     try:

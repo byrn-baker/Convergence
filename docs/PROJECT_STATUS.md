@@ -13,7 +13,7 @@
 | 2 | pfSense Firewall Integration + GeoIP Enrichment | ✅ Complete | ~2026-02-15 |
 | 3 | Alerting (Loki Rules + Grafana + Alertmanager) | ✅ Complete | ~2026-02-18 |
 | 4 | AI Threat Intelligence Service | ✅ Complete | 2026-02-21 |
-| **5** | **Event-Driven Automation Agent** | ✅ **Complete** (DRY_RUN) | **2026-02-25** |
+| **5** | **Event-Driven Automation Agent** | ✅ **Live** — XML-RPC alias, Discord bot, repeat-offender tracking | **2026-02-25** |
 
 ---
 
@@ -22,7 +22,7 @@
 ### What Was Built
 
 A new `automation-agent` FastAPI microservice that polls threat-intel every 10 minutes, uses
-Claude Haiku to propose pfBlockerNG block actions for high-risk IPs, gates on human Discord
+Claude Haiku to propose pfSense blocking actions for high-risk IPs, gates on human Discord
 approval (or auto-approves above a score threshold), and commits an immutable GAIT audit trail
 to a dedicated git repository for every decision.
 
@@ -31,39 +31,46 @@ threat-intel (/api/infinity/blocked_ips + /api/report)
     ↓
 automation-agent (FastAPI + APScheduler)   → http://localhost:8002
     ├─ Filter: score >= 80, known_bad_actor, not FP, not processed recently
-    ├─ Redis dedup + sliding-window rate limit (5 actions/hour)
-    ├─ GAIT audit trail: git branch per session, JSON turn files committed at every step
-    ├─ Claude Haiku: tight action-proposal prompt → structured JSON
-    ├─ DRY_RUN=true (default): log + Discord blue embed, no pfSense changes
-    ├─ score < 95: Discord orange approval embed → POST /approve/{id} to execute
-    ├─ score >= 95: auto-execute → 5 min wait → verify → rollback on fail
-    └─ pfBlockerNG executor: XML-RPC + SSH stubs ready for real credentials
+    ├─ Redis: dedup + sliding-window rate limit + lifetime block count per IP
+    ├─ GAIT audit trail: git branch per session, JSON turn files at every step
+    ├─ Claude Haiku: action-proposal prompt with block history + volume flags
+    ├─ DRY_RUN=false + score < 95: Discord bot approval (/approve /reject /approve-all)
+    ├─ DRY_RUN=false + score >= 95: auto-execute → 5 min wait → verify → rollback on fail
+    └─ pfSense executor: httpx XML-RPC transport → alias mode (write-serialised lock)
 ```
 
 ### New Services (post-Phase 5)
 
 | Container | Port | Status |
 |-----------|------|--------|
-| convergence-automation-agent | 8002 | ✅ Running (DRY_RUN=true) |
+| convergence-automation-agent | 8002 | ✅ Running (DRY_RUN=false, live mode) |
 
 Total services: **9** (+ automation-agent added to existing 8)
 
 ### Phase 5 Status
 
 - **GAIT audit trail**: ✅ git branch-per-session with 8 sequential turn files
-- **Claude action proposals**: ✅ structured JSON with safety constraints
-- **Discord notifications**: ✅ approval-required + outcome embeds
-- **Rate limiting**: ✅ Redis sliding window + IP dedup TTL
+- **Claude action proposals**: ✅ structured JSON with block history + escalation logic
+- **Discord bot**: ✅ /approve /reject /approve-all /reject-all /pending slash commands
+- **Rate limiting**: ✅ Redis sliding window (auto-approve) + IP dedup TTL
+- **Re-alert prevention**: ✅ mark_ip_processed called in pending path; in-memory dedup backup
+- **Repeat offender tracking**: ✅ Redis block count (1-year TTL), permanent block recommendation
 - **Pre/post baseline verification**: ✅ VictoriaMetrics PromQL diff
-- **pfSense integration**: ⬜ Stubs implemented, credentials not yet wired
+- **pfSense XML-RPC**: ✅ httpx transport (bypasses pfSense PHP echo prepend issue)
+- **pfSense alias mode**: ✅ plain Firewall Alias via PHP config API (no pfBlockerNG required)
+- **Concurrent write safety**: ✅ asyncio.Lock serialises all alias read-modify-write cycles
+- **Idempotent setup endpoint**: ✅ POST /api/automation/setup-pfsense creates alias + rule
 - **Grafana dashboard**: ✅ Automation folder with sessions, pending, metrics, audit rows
 
-### API Keys / Config Required for Full Activation
+### Config Required
 
 | Variable | Required For |
 |---|---|
-| `DISCORD_WEBHOOK_URL` | Approval notifications (works in DRY_RUN too) |
-| `PFSENSE_HOST` + `PFSENSE_XMLRPC_PASS` | Live pfSense blocking (DRY_RUN=false) |
+| `DISCORD_WEBHOOK_URL` | Outcome notifications |
+| `DISCORD_BOT_TOKEN` | Slash command approval flow |
+| `DISCORD_GUILD_ID` | Instant command sync (vs ~1h global) |
+| `PFSENSE_HOST` | Any pfSense path (include port if non-443, e.g. `192.168.1.1:440`) |
+| `PFSENSE_XMLRPC_PASS` | XML-RPC alias mode (Path B, recommended) |
 | `DRY_RUN=false` | Any real pfSense changes |
 
 ---
@@ -504,7 +511,47 @@ curl -s 'http://localhost:8428/api/v1/query?query=count(interface_in_octets_byte
 
 ## Change Log
 
-### 2026-02-25 — Phase 5: Event-Driven Automation Agent
+### 2026-02-25 — Phase 5: Automation Agent hardening + live activation
+
+**pfSense XML-RPC transport rewrite**
+- ✅ Replaced `xmlrpc.client.ServerProxy` with direct httpx POST (`_xmlrpc_exec_php()`) — pfSense
+  prepends PHP echo output before the XML-RPC envelope, which `xmlrpc.client` cannot parse
+- ✅ HTTP Basic Auth via httpx `auth=` parameter — handles special chars (`@`) in passwords correctly
+- ✅ Manual XML envelope extraction: splits response at `<?xml` offset, parses fault codes with ElementTree
+- ✅ `PFSENSE_XMLRPC_TARGET=alias` mode: edits plain Firewall Alias via PHP config API (`config_set_path`,
+  `write_config`, `filter_configure`) — no pfBlockerNG required
+- ✅ `POST /api/automation/setup-pfsense` endpoint — idempotent alias + WAN block rule creation via exec_php
+- ✅ `_xmlrpc_write_lock` (asyncio.Lock) — serialises concurrent alias writes; fixes race condition where
+  `/approve-all` with N IPs resulted in only 1 IP landing in the alias (last-writer-wins)
+- ✅ `PFSENSE_HOST` now supports `host:port` format for non-standard GUI ports (e.g. `192.168.1.1:440`)
+
+**Discord bot (/approve /reject /approve-all /reject-all /pending)**
+- ✅ Added `notifications/discord_bot.py` — discord.py Gateway bot with 5 slash commands
+- ✅ Guild-scoped slash command sync via `DISCORD_GUILD_ID` (instant vs ~1h global propagation)
+- ✅ `/approve-all` bypasses `MAX_ACTIONS_PER_HOUR` — rate limit protects unattended auto-approve,
+  not conscious human bulk decisions; `record_action_taken()` still fires for metrics accuracy
+- ✅ Fixed `analysis/claude_action.py:_PFBLOCKER_LIST` — was hardcoded to old `pfBlockerNG_AutoAgent_v4`
+  name; changed to `settings.pfsense_firewall_alias` so target list always matches `.env`
+
+**Re-alert spam prevention**
+- ✅ `mark_ip_processed(ip, ttl_hours=4)` now called in pending-approval path — previously absent,
+  causing the same IP to generate a fresh Discord alert on every 10-min poll cycle
+- ✅ In-memory dedup check (`already_pending`) added before rate limit check — catches container-restart
+  scenarios where Redis keys are cleared but `pending_approvals` dict still has the session
+
+**Repeat offender / block count tracking**
+- ✅ `get_block_count()` / `increment_block_count()` in `rate_limiter.py` — per-IP Redis counter
+  (`automation:block_count:{ip}`) with 1-year TTL, incremented after every successful live block
+- ✅ Block count fetched in `scheduler.py` before Claude analysis, stored in `threat_data["block_count"]`
+- ✅ Claude prompt updated with repeat-offender and high-volume labels; duration escalation to 168h +
+  `recommend_permanent_block: true` when thresholds exceeded
+- ✅ Discord approval embeds show "Block History" field (🆕/🟢/🟡/🔴 indicators)
+- ✅ Outcome notifications include total block count and repeat-offender callout
+- ✅ `REPEAT_OFFENDER_THRESHOLD=5` and `HIGH_VOLUME_THRESHOLD=50` added to config + `.env`
+
+---
+
+### 2026-02-25 — Phase 5: Event-Driven Automation Agent (initial build)
 - ✅ Built `services/automation-agent/` FastAPI service (19 new files, 2,395 lines)
 - ✅ APScheduler 10-min polling loop with per-IP session orchestration
 - ✅ GAIT audit trail: gitpython branch-per-session, 8 sequential JSON turn files
@@ -512,7 +559,7 @@ curl -s 'http://localhost:8428/api/v1/query?query=count(interface_in_octets_byte
 - ✅ Discord webhook: approval-required orange embeds + dry-run/success/fail outcome embeds
 - ✅ Redis rate limiter (sliding window) + IP deduplication TTL
 - ✅ VictoriaMetrics baseline capture + post-action verification
-- ✅ pfBlockerNG executor stubs (XML-RPC + SSH paths) with TODO blocks for real credentials
+- ✅ pfSense executor: XML-RPC + SSH paths implemented
 - ✅ 7 new Prometheus metrics (`automation_actions_total`, `session_duration`, etc.)
 - ✅ Grafana Automation dashboard (`dashboards/automation/automation-agent.json`)
 - ✅ Grafana Infinity datasource provisioned (`automation-agent.yaml`)

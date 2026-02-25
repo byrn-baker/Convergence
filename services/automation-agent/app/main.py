@@ -8,6 +8,7 @@ Endpoints:
   POST /api/automation/approve/{id}     Approve a pending session
   DEL  /api/automation/approve/{id}     Reject a pending session
   GET  /api/automation/audit            Recent GAIT branches summary
+  POST /api/automation/setup-pfsense   Create alias + WAN block rule (idempotent)
 
   # Grafana Infinity datasource (always arrays)
   GET  /api/infinity/sessions           Recent sessions flat table
@@ -28,10 +29,11 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from app import state
 from app.actions.executor import execute_and_verify
-from app.actions.pfblocker import PfBlockerAction
+from app.actions.pfblocker import PfBlockerAction, setup_pfsense_prereqs
 from app.actions.rate_limiter import get_rate_limit_status
 from app.audit.git_trail import trail
 from app.config import settings
+from app.notifications.discord_bot import start_bot, stop_bot
 from app.scheduler import start_scheduler
 import app.metrics as m
 
@@ -44,8 +46,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    start_scheduler()
+    start_scheduler(asyncio.get_running_loop())
+    await start_bot()
     yield
+    await stop_bot()
 
 
 app = FastAPI(
@@ -79,6 +83,8 @@ async def health():
         "rate_limit": rate,
         "threat_intel_url": settings.threat_intel_url,
         "pfsense_configured": bool(settings.pfsense_host),
+        "pfsense_api_configured": bool(settings.pfsense_api_key),
+        "pfsense_firewall_alias": settings.pfsense_firewall_alias,
         "discord_configured": bool(settings.discord_webhook_url),
         "anthropic_configured": bool(settings.anthropic_api_key),
     }
@@ -235,6 +241,30 @@ async def audit_sessions():
         "audit_repo_path": settings.audit_repo_path,
         "sessions": trail.list_sessions(limit=50),
     }
+
+
+# ---------------------------------------------------------------------------
+# pfSense one-time setup
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/automation/setup-pfsense")
+async def setup_pfsense():
+    """Create the firewall alias and WAN block rule in pfSense if they don't exist.
+
+    Uses XML-RPC exec_php with PFSENSE_XMLRPC_PASS credentials — no API key needed.
+    Safe to call multiple times (idempotent).
+
+    Returns:
+        alias: "created" | "exists" | "skipped"
+        rule:  "created" | "exists" | "skipped"
+
+    In DRY_RUN mode the call is a no-op and returns skipped for both.
+    """
+    result = await setup_pfsense_prereqs()
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    return result
 
 
 # ---------------------------------------------------------------------------

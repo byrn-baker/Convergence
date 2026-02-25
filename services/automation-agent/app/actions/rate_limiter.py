@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 _redis: Optional[aioredis.Redis] = None
 _RATE_KEY = "automation:actions_this_hour"
 _PROC_PREFIX = "automation:processed:"
+_BLOCK_COUNT_PREFIX = "automation:block_count:"
+_BLOCK_COUNT_TTL = 365 * 24 * 3600  # 1 year — long enough to track persistent threats
 
 
 def get_redis() -> aioredis.Redis:
@@ -85,6 +87,23 @@ async def mark_ip_processed(ip: str, ttl_hours: int = 4) -> None:
     key = f"{_PROC_PREFIX}{ip}"
     await r.set(key, "1", ex=ttl_hours * 3600)
     logger.debug("Marked IP %s as processed (TTL=%dh)", ip, ttl_hours)
+
+
+async def get_block_count(ip: str) -> int:
+    """Return the lifetime number of times this IP has been blocked by the agent."""
+    r = get_redis()
+    val = await r.get(f"{_BLOCK_COUNT_PREFIX}{ip}")
+    return int(val) if val else 0
+
+
+async def increment_block_count(ip: str) -> int:
+    """Increment the lifetime block count for this IP and return the new total."""
+    r = get_redis()
+    key = f"{_BLOCK_COUNT_PREFIX}{ip}"
+    count = await r.incr(key)
+    await r.expire(key, _BLOCK_COUNT_TTL)
+    logger.debug("Block count for %s incremented to %d", ip, count)
+    return int(count)
 
 
 async def get_rate_limit_status() -> dict:

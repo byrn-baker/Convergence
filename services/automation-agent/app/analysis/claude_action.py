@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 _MODEL = "claude-haiku-4-5-20251001"
 _MAX_TOKENS = 800
 
-# The custom pfBlockerNG list managed by this agent.
-# Must be created in pfBlockerNG > IP > IPv4 Custom Lists before enabling live mode.
-_PFBLOCKER_LIST = "pfBlockerNG_AutoAgent_v4"
+# The firewall alias (or pfBlockerNG list) managed by this agent.
+# Reads from settings so it stays in sync with PFSENSE_FIREWALL_ALIAS / PFBLOCKER_CUSTOM_LIST.
+_PFBLOCKER_LIST = settings.pfsense_firewall_alias
 
 
 def build_action_prompt(
@@ -55,6 +55,30 @@ def build_action_prompt(
         "riot": intel.get("riot", False),
     }
 
+    block_count = threat_data.get("block_count", 0)
+    hourly_events = threat_data.get("count", 0)
+    repeat_threshold = settings.repeat_offender_threshold
+    high_volume_threshold = settings.high_volume_threshold
+
+    # Classify the severity of repeat behaviour for Claude
+    if block_count >= repeat_threshold:
+        repeat_label = (
+            f"⚠️ REPEAT OFFENDER — blocked {block_count} time(s) previously. "
+            f"Consider recommending permanent block list addition."
+        )
+    elif block_count > 0:
+        repeat_label = f"Previously blocked {block_count} time(s)."
+    else:
+        repeat_label = "First time seen by this agent."
+
+    if hourly_events >= high_volume_threshold:
+        volume_label = (
+            f"⚠️ HIGH VOLUME — {hourly_events} events in the last hour. "
+            f"Actively hammering the network. Consider recommending permanent block."
+        )
+    else:
+        volume_label = f"{hourly_events} events in the last hour."
+
     baseline_metrics = json.dumps(baseline.get("metrics", {}), indent=2)
     narrative_excerpt = (narrative or "No narrative available.")[:600]
 
@@ -64,7 +88,8 @@ Your task: propose ONE safe, reversible pfSense blocking action for a high-risk 
 THREAT DATA:
   IP:              {ip}
   Direction:       {threat_data.get("direction", "unknown")} (inbound=WAN, outbound=LAN→internet)
-  Events (1h):     {threat_data.get("count", 0)}
+  Events (1h):     {volume_label}
+  Block history:   {repeat_label}
   Intel:           {json.dumps(prompt_intel, indent=4)}
 
 THREAT NARRATIVE (excerpt from threat-intel service):
@@ -88,17 +113,19 @@ SAFETY RULES (hard constraints — always apply):
   5. For outbound suspicious: only propose a block if composite_score > 85
      AND abuse_confidence_score > 60
 
-DURATION GUIDELINES:
-  - Persistent known bad actor (pulses > 5, abuse > 70): 72 hours
-  - High score but first sighting: 24 hours
-  - Borderline: 12 hours
+DURATION GUIDELINES (escalate based on history):
+  - First sighting, high score: 24 hours
+  - Borderline score: 12 hours
+  - Persistent bad actor (pulses > 5, abuse > 70): 72 hours
+  - Blocked {repeat_threshold}+ times previously OR {high_volume_threshold}+ events/hour:
+      → Use 168 hours (7 days) AND include "recommend_permanent_block": true in notes
 
 Respond ONLY with valid JSON (no markdown, no code fences):
 {{
   "type": "pfblocker_add" | "no_action",
   "target_list": "{_PFBLOCKER_LIST}",
   "value": "x.x.x.x/32",
-  "reason": "concise reason citing specific intel (score, pulses, org)",
+  "reason": "concise reason citing specific intel (score, pulses, org, block history)",
   "duration_hours": 24,
   "confidence": "high" | "medium" | "low",
   "notes": "any caveats or recommended follow-up steps"

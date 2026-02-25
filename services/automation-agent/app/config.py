@@ -14,19 +14,43 @@ class Settings(BaseSettings):
     loki_url: str = "http://loki:3100"
     threat_intel_url: str = "http://threat-intel:8000"
 
-    # pfSense — XML-RPC (primary)
+    # pfSense — connection (shared by all paths)
     pfsense_host: str = ""          # e.g. "192.168.1.1"
+    pfsense_verify_ssl: bool = False  # false = accept self-signed certs
+
+    # pfSense — Path A: REST API v2 (pfSense Plus 25.11, optional)
+    # System > API > Keys — generate a key, assign to admin user.
+    # Also requires a firewall alias + block rule (see docs).
+    pfsense_api_key: str = ""
+    pfsense_firewall_alias: str = "AutoAgent_Block_v4"
+
+    # pfSense — Path B: XML-RPC exec_php (no API key needed, just web UI credentials)
+    # Two sub-modes controlled by pfsense_xmlrpc_target:
+    #   "alias"      — adds IP to a plain Firewall Alias via PHP config API (recommended)
+    #                  Requires: Firewall > Aliases — create Host alias "AutoAgent_Block_v4"
+    #                            Firewall > Rules  — block rule with Source = AutoAgent_Block_v4
+    #   "pfblockerng" — appends to a pfBlockerNG IPv4 Custom List file and syncs
+    #                  Requires: pfBlockerNG > IP > IPv4 Custom Lists — list "pfBlockerNG_AutoAgent_v4"
     pfsense_xmlrpc_user: str = "admin"
     pfsense_xmlrpc_pass: str = ""
-    pfsense_verify_ssl: bool = False
+    pfsense_xmlrpc_target: str = "alias"   # "alias" or "pfblockerng"
 
-    # pfSense — SSH (fallback)
+    # pfSense — Path C: SSH emergency fallback
     pfsense_ssh_host: str = ""      # defaults to pfsense_host if blank
     pfsense_ssh_user: str = "admin"
-    pfsense_ssh_key_path: str = "/app/secrets/pfsense_id_ed25519"
+    pfsense_ssh_key_path: str = ""  # path to private key inside container; empty = SSH disabled
 
-    # Discord
+    # Discord — webhook (one-way, always used for outcome notifications)
     discord_webhook_url: str = ""
+
+    # Discord — bot (two-way: /approve, /reject, /pending slash commands)
+    # Create at https://discord.com/developers/applications → Bot → Reset Token
+    # OAuth2 scopes needed: bot + applications.commands
+    # Bot permissions needed: Send Messages, Use Slash Commands
+    discord_bot_token: str = ""
+    # Your server (guild) ID — enables instant slash command sync instead of ~1h global delay
+    # Right-click server icon → Copy Server ID (enable Developer Mode first)
+    discord_guild_id: int = 0
 
     # ---- Safety controls ----
     # Master kill-switch. true = log everything, execute nothing.
@@ -44,6 +68,14 @@ class Settings(BaseSettings):
 
     # How long a temp block TTL should be (hours)
     block_ttl_hours: int = 24
+
+    # Number of lifetime blocks before an IP is flagged as a repeat offender
+    # and Claude is instructed to recommend permanent block list addition
+    repeat_offender_threshold: int = 5
+
+    # Hourly event count above which an IP is flagged as high-volume/aggressive
+    # (independent of block history — triggers permanent block recommendation)
+    high_volume_threshold: int = 50
 
     # ---- Scheduler ----
     # How often to poll threat-intel for new high-risk IPs (seconds)

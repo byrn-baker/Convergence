@@ -22,7 +22,7 @@ from typing import Any
 from app import state
 from app.actions.baseline import capture_baseline, verify_action
 from app.actions.pfblocker import PfBlockerAction, execute_pfblocker_add, rollback_pfblocker_add
-from app.actions.rate_limiter import record_action_taken, mark_ip_processed
+from app.actions.rate_limiter import record_action_taken, mark_ip_processed, increment_block_count
 from app.config import settings
 from app.notifications.discord import send_action_outcome
 import app.metrics as m
@@ -157,11 +157,21 @@ async def execute_and_verify(
 
     await record_action_taken()
     await mark_ip_processed(ip, ttl_hours=pf_action.duration_hours)
+    total_blocks = await increment_block_count(ip)
+
+    repeat_note = ""
+    if total_blocks >= settings.repeat_offender_threshold:
+        repeat_note = (
+            f" — ⚠️ **{total_blocks}x blocked total** (repeat offender — "
+            f"consider adding to a permanent block list)"
+        )
+    elif total_blocks > 1:
+        repeat_note = f" — blocked {total_blocks}x total"
 
     outcome_msg = (
         f"Added `{pf_action.value}` to `{pf_action.target_list}` "
         f"(TTL={pf_action.duration_hours}h, dry_run={settings.dry_run}, "
-        f"effective={effective}, session={session_id})"
+        f"effective={effective}, session={session_id}){repeat_note}"
     )
     await send_action_outcome(session_id, ip, success=True, outcome_message=outcome_msg)
 

@@ -88,6 +88,7 @@ async def send_action_proposal(
     otx_pulses     = intel.get("pulse_count", 0)
     direction      = threat_data.get("direction", "unknown")
     events         = threat_data.get("count", 0)
+    block_count    = threat_data.get("block_count", 0)
 
     action_type    = proposed_action.get("type", "unknown")
     target_list    = proposed_action.get("target_list", "?")
@@ -99,14 +100,44 @@ async def send_action_proposal(
     reject_url = approve_url.replace("/approve/", "/approve/").rstrip("/")
     # Approval = POST, Rejection = DELETE to same URL
 
+    # Build block history label — flag repeat offenders prominently
+    if block_count >= settings.repeat_offender_threshold:
+        block_history_label = (
+            f"🔴 **{block_count}x** — REPEAT OFFENDER (consider permanent block)"
+        )
+    elif block_count >= settings.high_volume_threshold // 10:  # rough mid-tier
+        block_history_label = f"🟡 **{block_count}x** — seen before"
+    elif block_count > 0:
+        block_history_label = f"🟢 **{block_count}x** — blocked before"
+    else:
+        block_history_label = "🆕 First time seen"
+
+    if events >= settings.high_volume_threshold:
+        events_label = f"⚠️ **{events}** (high volume — consider permanent block)"
+    else:
+        events_label = str(events)
+
+    bot_configured = bool(settings.discord_bot_token)
+    if bot_configured:
+        how_to = (
+            f":white_check_mark: **To approve:** `/approve session_id:{session_id}`\n"
+            f":x: **To reject:** `/reject session_id:{session_id}`\n"
+            f":scroll: **List all pending:** `/pending`\n"
+            ":clock1: **Auto-expires in 4 hours** with no action taken"
+        )
+    else:
+        how_to = (
+            f":white_check_mark: **To approve:** `POST {approve_url}`\n"
+            f":x: **To reject:** `DELETE {approve_url}`\n"
+            ":clock1: **Auto-expires in 4 hours** with no action taken\n"
+            "_Tip: set `DISCORD_BOT_TOKEN` to enable `/approve` slash commands_"
+        )
+
     embed = {
         "title": f"\u26a0\ufe0f Automation Approval Required \u2014 {ip}",
         "description": (
             "The automation agent has identified a **high-risk IP** and proposes "
-            "a pfSense blocking action.\n\n"
-            ":white_check_mark: **To approve:** `POST` to the approve URL below\n"
-            ":x: **To reject:** `DELETE` to the same URL\n"
-            ":clock1: **Auto-expires in 4 hours** with no action taken"
+            f"a pfSense blocking action.\n\n{how_to}"
         ),
         "color": _COLOR_APPROVAL,
         "timestamp": _ts(),
@@ -117,7 +148,8 @@ async def send_action_proposal(
             {"name": "Organization",      "value": org or "—",             "inline": True},
             {"name": "Country",           "value": country,                 "inline": True},
             {"name": "Direction",         "value": direction,               "inline": True},
-            {"name": "Events (1h)",       "value": str(events),             "inline": True},
+            {"name": "Events (1h)",       "value": events_label,            "inline": True},
+            {"name": "Block History",     "value": block_history_label,     "inline": True},
             {"name": "AbuseIPDB Score",   "value": f"{abuse_score}%",       "inline": True},
             {"name": "OTX Pulses",        "value": str(otx_pulses),         "inline": True},
             {"name": "Proposed Action",   "value": f"`{action_type}`",      "inline": True},
@@ -126,11 +158,6 @@ async def send_action_proposal(
             {"name": "AI Confidence",     "value": confidence,              "inline": True},
             {"name": "CIDR to Block",     "value": f"`{value}`",            "inline": False},
             {"name": "Reason",            "value": reason,                  "inline": False},
-            {
-                "name": "Approve URL",
-                "value": f"```\nPOST {approve_url}\n```",
-                "inline": False,
-            },
             {"name": "Session ID", "value": f"`{session_id}`", "inline": False},
         ],
         "footer": {"text": "Convergence AutoAgent \u2022 Phase 5 \u2022 Fail-closed"},

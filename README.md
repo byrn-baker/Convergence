@@ -1,12 +1,12 @@
 # Convergence
 
-**Network Observability Platform with Nautobot Integration**
+**Network Observability and AI Threat Intelligence Platform**
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/deployment-docker-2496ED.svg)](https://www.docker.com/)
 [![Status](https://img.shields.io/badge/status-operational-success.svg)](docs/PROJECT_STATUS.md)
 
-Convergence is a general-purpose observability platform that can be adapted to different monitoring use cases. Built on OpenTelemetry Collector, VictoriaMetrics, Grafana, Loki, and Alertmanager, it provides a foundation for collecting, storing, visualizing, and alerting on telemetry data from network devices and other sources. The platform features automatic device discovery from Nautobot, GeoIP enrichment for geographic threat visualization, and intelligent alerting via Discord.
+Convergence is a network observability platform built on OpenTelemetry Collector, VictoriaMetrics, Grafana, Loki, and Alertmanager. It collects, stores, visualizes, and alerts on telemetry from network devices, enriches pfSense firewall events with GeoIP and four threat intelligence APIs, and uses Claude Haiku to both generate AI security narratives and propose automated pfSense blocking actions. A Discord bot provides in-channel slash-command approval for all automation decisions. The platform includes automatic device discovery from Nautobot.
 
 ---
 
@@ -17,7 +17,15 @@ Convergence is a general-purpose observability platform that can be adapted to d
 - **Multiple Telemetry Sources**: SNMP, syslog (RFC 3164), with support for NETCONF, gNMI, and others
 - **GeoIP Enrichment**: Source IP geolocation (lat/lon/country) for firewall events
 - **Geo-Visualization**: Grafana Geomap panels showing real-time attack origins on a world map
-- **Pre-built Dashboards**: 7 Grafana dashboards organized into Network and Security folders
+- **AI Threat Intelligence**: Top blocked/outbound IPs enriched via AbuseIPDB, GreyNoise, OTX, and IPInfo
+- **Composite Threat Scoring**: 0–100 score per IP with automatic threat level classification
+- **Outbound C2 Detection**: Flags suspicious outbound destinations against threat intelligence feeds
+- **AI Threat Narratives**: Claude Haiku generates pfSense-specific executive summaries and actionable remediation steps using real interface names and pfBlockerNG paths
+- **Event-Driven Automation**: Polls threat-intel every 10 minutes; Claude proposes pfSense blocking actions for high-risk IPs; executed live after human or auto approval
+- **Discord Bot Approval**: Five slash commands (`/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending`) for in-channel human review of automation decisions
+- **Repeat Offender Tracking**: Per-IP lifetime block counter in Redis; IPs blocked 5+ times or hammering 50+ events/hour get escalated durations and a permanent-block recommendation
+- **GAIT Audit Trail**: Every AI decision committed to an immutable git branch — 8 sequential JSON turn files record exactly what the agent saw, decided, and did
+- **Pre-built Dashboards**: 9 Grafana dashboards across Network, Security, Threat Intelligence, and Automation folders
 - **Intelligent Alerting**: Provisioned alert rules with Discord notifications via Alertmanager
 - **Loki Ruler**: LogQL-based recording rules and spike detection for firewall events
 - **Time-Series Storage**: VictoriaMetrics with configurable retention (default: 90 days)
@@ -25,7 +33,7 @@ Convergence is a general-purpose observability platform that can be adapted to d
 - **Self-signed SSL Support**: Development-friendly with certificate verification toggle
 - **Extensible Architecture**: Add new receivers, processors, and exporters as needed
 
-**Current Implementation**: ✅ **Operational** - Monitoring 2 Cisco switches + pfSense firewall via SNMP and syslog, with GeoIP threat visualization and Discord alerting.
+**Current Implementation**: ✅ **Operational** — Monitoring 2 Cisco switches + pfSense firewall via SNMP and syslog, AI threat intelligence enrichment, and live pfSense automation with Discord bot approval.
 
 ---
 
@@ -154,22 +162,57 @@ curl http://localhost:9093/-/healthy
            │                  │  → Discord webhook    │
            │                  └──────────────────────┘
            │
-           v
-┌─────────────────────────────────────────────────────────────┐
-│                    Grafana (port 3000)                        │
-│                                                               │
-│  Network/                      Security/                     │
-│  ├─ Interface Utilization       ├─ pfSense Firewall Security  │
-│  ├─ Interface Errors            │   ├─ Geomap: WAN Threats   │
-│  ├─ Network Overview            │   └─ Attack analysis        │
-│  ├─ Platform Health             └─ Threat Analysis            │
-│  └─ Network Device Health           ├─ Top countries          │
-│      ├─ Uptime stats                ├─ Protocol distribution  │
-│      ├─ Error rates                 └─ Attack timeseries      │
-│      └─ Bandwidth per device                                  │
-│                                                               │
-│  Unified Alerting → Discord (5 provisioned rules)            │
-└─────────────────────────────────────────────────────────────┘
+           ├──────────────────────────────────────────────────────────┐
+           │                                                           │
+           v                                                           v
+┌────────────────────────────────┐           ┌────────────────────────────────────────┐
+│    Grafana (port 3000)          │           │  threat-intel service (port 8001)       │
+│                                 │           │                                          │
+│  Network/                       │           │  Hourly enrichment job:                 │
+│  ├─ Interface Utilization        │           │  ├─ AbuseIPDB / GreyNoise / OTX /       │
+│  ├─ Interface Errors             │◄──────────│    IPInfo → composite score 0-100        │
+│  ├─ Network Overview             │  Infinity │  ├─ Loki LogQL filterlog port analysis   │
+│  ├─ Platform Health              │  JSON +   │  └─ Claude Haiku → threat narrative      │
+│  └─ Network Device Health        │  Prom     │                                          │
+│                                  │  metrics  │  GET /api/infinity/* → Grafana panels    │
+│  Security/                       │           │  GET /metrics → VictoriaMetrics scrape   │
+│  ├─ pfSense Firewall Security    │           └────────────────────────────────────────┘
+│  └─ Threat Analysis              │
+│                                  │
+│  Threat Intelligence/            │
+│  └─ AI Threat Dashboard          │
+│      ├─ Risk level + bad actors  │
+│      ├─ AI narrative + actions   │
+│      ├─ IP reputation tables     │
+│      └─ Port attack analysis     │
+│                                  │
+│  Automation/                     │
+│  └─ Automation Agent Dashboard   │
+│      ├─ Sessions + status table  │
+│      ├─ Pending approvals        │
+│      ├─ Action metrics           │
+│      └─ GAIT audit branch list   │
+│                                  │
+│  Unified Alerting → Discord      │
+│  (5 provisioned rules)           │
+└────────────────────────────────┘
+
+                      ▲ Infinity JSON
+                      │
+           ┌──────────────────────────────────────────┐
+           │  automation-agent (port 8002)             │
+           │                                           │
+           │  Poll threat-intel every 10 min           │
+           │  ├─ score ≥ 80: Claude action proposal    │
+           │  ├─ Block history: repeat-offender check  │
+           │  ├─ score < 95: Discord bot approval      │
+           │  │   /approve /reject /approve-all etc.   │
+           │  ├─ score ≥ 95: auto-execute              │
+           │  ├─ pfSense: XML-RPC alias write          │
+           │  └─ GAIT git branch audit per session     │
+           │                                           │
+           │  Redis DB1: rate limit + block counts     │
+           └──────────────────────────────────────────┘
 ```
 
 ---
@@ -213,9 +256,41 @@ convergence/
 │   ├── security/
 │   │   ├── pfsense-firewall-security.json   # Geomap + firewall event analysis
 │   │   └── threat-analysis.json             # Country breakdown, attack trends
+│   ├── threat-intel/
+│   │   └── threat-intelligence.json         # AI threat intelligence dashboard (Phase 4)
+│   ├── automation/
+│   │   └── automation-agent.json            # Automation agent dashboard (Phase 5)
 │   ├── cisco/                       # Reserved for vendor-specific dashboards
 │   ├── juniper/
 │   └── arista/
+│
+├── services/
+│   ├── threat-intel/                # Phase 4: AI threat intelligence microservice
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   ├── data/
+│   │   │   └── port_services.json   # 31 high-risk port definitions
+│   │   └── app/                     # FastAPI + APScheduler enrichment pipeline
+│   │
+│   └── automation-agent/            # Phase 5: AI automation agent
+│       ├── Dockerfile
+│       ├── requirements.txt
+│       └── app/
+│           ├── main.py              # FastAPI entrypoint + GAIT audit trail
+│           ├── config.py            # Pydantic settings (all env vars)
+│           ├── scheduler.py         # APScheduler: poll threat-intel every 10m
+│           ├── state.py             # In-memory session state
+│           ├── metrics.py           # Prometheus metrics
+│           ├── actions/
+│           │   ├── pfblocker.py     # pfSense XML-RPC alias write (with write lock)
+│           │   ├── executor.py      # execute → verify → rollback → outcome
+│           │   ├── baseline.py      # VictoriaMetrics snapshot + action verification
+│           │   └── rate_limiter.py  # Hourly cap, dedup, per-IP block count
+│           ├── analysis/
+│           │   └── claude_action.py # Claude Haiku action proposal prompt
+│           └── notifications/
+│               ├── discord.py       # Webhook: approval requests + outcome DMs
+│               └── discord_bot.py   # Bot: /approve /reject /approve-all /reject-all /pending
 │
 ├── scripts/
 │   ├── nautobot_device_discovery.py # Device discovery and config generation
@@ -224,6 +299,9 @@ convergence/
 ├── docs/
 │   ├── PROJECT_STATUS.md            # Detailed project status and history
 │   ├── PHASE3_ALERTING.md           # Phase 3: alerting, geo-viz, dashboard guide
+│   ├── PHASE4_THREAT_INTELLIGENCE.md # Phase 4: threat intel service deployment guide
+│   ├── PHASE5_AUTOMATION_AGENT.md   # Phase 5: automation agent deployment + operations guide
+│   ├── THREAT_INTEL_SERVICE.md      # Phase 4: service internals, API reference, gotchas
 │   ├── FIREWALL-SECURITY-DASHBOARD.md
 │   ├── NAUTOBOT_ENRICHMENT.md
 │   └── quickstart/
@@ -245,13 +323,15 @@ convergence/
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | Grafana | http://localhost:3000 | admin / admin |
+| Threat Intel API | http://localhost:8001 | N/A |
+| Automation Agent API | http://localhost:8002 | N/A |
 | VictoriaMetrics API | http://localhost:8428 | N/A |
 | Loki API | http://localhost:3100 | N/A |
 | Alertmanager | http://localhost:9093 | N/A |
 | Promtail Metrics | http://localhost:9080 | N/A |
 | OTEL Collector Health | http://localhost:13133 | N/A |
 | OTEL Collector Metrics | http://localhost:8888 | N/A |
-| Redis | localhost:6379 | N/A (future use) |
+| Redis | localhost:6379 | N/A (IP enrichment + automation cache) |
 
 ---
 
@@ -278,13 +358,33 @@ convergence/
    - Firewall actions over time (pass vs block)
    - Protocol and interface distribution
 
-7. **Threat Analysis** *(new)*
+7. **Threat Analysis** *(new in Phase 3)*
    - Stats: total blocks (24h), attacking countries, current block rate (blocks/min)
    - Top 10 attacking countries (horizontal bar chart)
    - Protocol distribution (donut chart)
    - Attack rate by country over time (top 7, 15m rolling rate)
    - Blocks by interface (stacked timeseries)
    - Full sortable country breakdown table
+
+### Threat Intelligence Folder *(Phase 4)*
+
+8. **AI Threat Intelligence**
+   - Executive Summary strip: overall risk level, known bad actor counts, critical ports, max threat score gauge, last enrichment timestamp
+   - AI Narrative row: Claude Haiku executive summary, pfSense-specific recommended actions (with real interface names and pfBlockerNG paths), top threats with org/false positive context
+   - Inbound Threat Scores: top IPs by composite score, AbuseIPDB scores, score over time
+   - Outbound Traffic Analysis: suspicious outbound destinations (with pfSense NAT source), OTX hits
+   - Port Attack Analysis: top targeted ports bar chart, critical ports table, risk level pie chart
+   - Enriched IP Detail Tables: full blocked IP and outbound IP tables with country, org, score, AbuseIPDB, GreyNoise, OTX columns
+   - Service Health: last enrichment timestamp, IPs processed, cache hit rate
+
+### Automation Folder *(Phase 5)*
+
+9. **Automation Agent**
+   - Sessions table: recent automation sessions with IP, threat score, proposed action, status, timestamp
+   - Pending Approvals: IPs awaiting Discord bot approval (auto-refreshes)
+   - Action Metrics: automation actions taken (success/fail/dry-run), actions per hour gauge vs. `MAX_ACTIONS_PER_HOUR` cap
+   - GAIT Audit: list of git audit branches created this session (one per IP decision)
+   - Agent Health: scheduler poll status, Redis connectivity, last poll timestamp
 
 ---
 
@@ -326,6 +426,9 @@ See [docs/PHASE3_ALERTING.md](docs/PHASE3_ALERTING.md) for full alerting documen
 For detailed information, see the [docs](docs/) folder:
 
 - **[Project Status](docs/PROJECT_STATUS.md)**: Current capabilities, recent improvements, lessons learned, and roadmap
+- **[Phase 5: Automation Agent](docs/PHASE5_AUTOMATION_AGENT.md)**: Complete deployment and operations guide — pfSense XML-RPC setup, Discord bot configuration, safety controls, repeat offender tracking, GAIT audit trail, and troubleshooting
+- **[Phase 4: AI Threat Intelligence](docs/PHASE4_THREAT_INTELLIGENCE.md)**: Deployment guide, composite scoring, Grafana dashboard, Loki port analysis, troubleshooting, and bug reference for the threat-intel service
+- **[Threat Intel Service Reference](docs/THREAT_INTEL_SERVICE.md)**: Service internals, enrichment pipeline data flow, all 15 API endpoints with examples, Redis key schema, Infinity datasource gotchas, and development notes
 - **[Phase 3 Alerting Guide](docs/PHASE3_ALERTING.md)**: Alerting pipeline, geo-visualization, dashboard organization, and troubleshooting
 - **[Nautobot Integration](docs/NAUTOBOT_ENRICHMENT.md)**: Setup guide for Nautobot API integration
 - **[Firewall Dashboard Example](docs/FIREWALL-SECURITY-DASHBOARD.md)**: pfSense integration guide
@@ -365,6 +468,14 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 
 # Generic webhook (Slack, n8n, custom endpoint)
 # ALERT_WEBHOOK_URL=https://hooks.slack.com/services/...
+
+# Threat Intelligence API keys (Phase 4)
+# See docs/PHASE4_THREAT_INTELLIGENCE.md for registration links and free tier limits
+ANTHROPIC_API_KEY=sk-ant-...        # Required for AI narratives (Claude Haiku)
+ABUSEIPDB_API_KEY=                  # Recommended: 1,000 checks/day free
+OTX_API_KEY=                        # Recommended: free registration
+IPINFO_TOKEN=                       # Recommended: 50k lookups/month free
+GREYNOISE_API_KEY=                  # Optional: community API works without key
 ```
 
 See [.env.example](.env.example) for all available options.
@@ -444,20 +555,31 @@ curl -s -u admin:admin http://localhost:3000/api/v1/provisioning/contact-points 
 - Real interface names (e.g., "GigabitEthernet1/0/1")
 - pfSense syslog ingestion with filterlog parsing and GeoIP enrichment
 - `firewall_events_total` metric with geo labels (src_lat, src_lon, src_country)
-- 7 Grafana dashboards in organized Network/Security folders
+- AI threat intelligence: top 50 blocked + 20 outbound IPs enriched hourly via 4 external APIs
+- Composite 0–100 threat scoring with outbound C2 detection and false positive heuristics
+- Claude Haiku AI narratives: pfSense-specific executive summary, top threats, recommended actions
+- 10 `threat_intel_*` Prometheus metrics flowing into VictoriaMetrics
+- 9 Grafana dashboards in Network, Security, Threat Intelligence, and Automation folders
 - Loki ruler: LogQL recording rules and spike detection alerting
 - 5 provisioned Grafana alert rules (security + network health)
 - Discord alerting via Alertmanager and Grafana Unified Alerting
 - 90-day metrics retention in VictoriaMetrics
+- Redis caching: 24h TTL per IP, AbuseIPDB daily budget guard
+- **Live automation**: polling threat-intel every 10m, Claude-proposed pfSense blocks via XML-RPC
+- **Discord bot approval**: `/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending` slash commands with human-bypassed rate limits
+- **Repeat offender tracking**: per-IP lifetime block counter; escalated TTL (168h) + permanent block recommendation at 5+ blocks or 50+ events/hour
+- **GAIT audit trail**: every AI decision committed to an immutable git branch with 8 JSON turn files
 
-### 🎯 Next Steps (Phase 4)
-- Automated pfSense response: add block rules via API when under attack
-- Dynamic baselines: MetricsQL `outlier_iqr_over_time()` to replace fixed thresholds
-- AI integration: LLM-powered natural language security summaries
+### 🎯 Roadmap
+
+Phase 1–5 complete. Potential future enhancements:
+
+- Dynamic baselines: MetricsQL `outlier_iqr_over_time()` to replace fixed alert thresholds
 - Multi-site: extend Alertmanager routing for multiple pfSense instances
 - Additional protocols: NETCONF, gNMI
+- Persistent permanent block list: automatic promotion from temp block list after repeat offender threshold
 
-See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for detailed roadmap.
+See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for detailed history and roadmap.
 
 ---
 
@@ -516,4 +638,4 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Need Help?** Check the [documentation](docs/) or [PHASE3_ALERTING.md](docs/PHASE3_ALERTING.md) for detailed troubleshooting guides.
+**Need Help?** Check the [documentation](docs/) folder. For automation agent issues see [PHASE5_AUTOMATION_AGENT.md](docs/PHASE5_AUTOMATION_AGENT.md#troubleshooting). For threat intelligence issues see [PHASE4_THREAT_INTELLIGENCE.md](docs/PHASE4_THREAT_INTELLIGENCE.md#troubleshooting). For alerting and firewall issues see [PHASE3_ALERTING.md](docs/PHASE3_ALERTING.md).
