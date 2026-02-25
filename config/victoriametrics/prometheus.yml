@@ -30,3 +30,17 @@ scrape_configs:
       - targets: ['grafana:3000']
         labels:
           service: 'grafana'
+
+  # Threat Intelligence service metrics
+  - job_name: 'threat-intel'
+    static_configs:
+      - targets: ['threat-intel:8000']
+        labels:
+          service: 'threat-intel'
+
+  # Automation Agent metrics (Phase 5)
+  - job_name: 'automation-agent'
+    static_configs:
+      - targets: ['automation-agent:8000']
+        labels:
+          service: 'automation-agent'

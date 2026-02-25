@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: AutomationAgent
+    type: yesoreyeram-infinity-datasource
+    uid: automation-agent
+    access: proxy
+    orgId: 1
+    isDefault: false
+    url: "http://automation-agent:8000"
+    jsonData:
+      base_url: "http://automation-agent:8000"
+      allowedHosts:
+        - "http://automation-agent:8000"
+    version: 1
+    editable: true
