@@ -59,3 +59,27 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/arista
       foldersFromFilesStructure: false
+
+  # Threat Intelligence dashboards (Phase 4)
+  - name: 'Threat Intelligence'
+    orgId: 1
+    folder: 'Threat Intelligence'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/threat-intel
+      foldersFromFilesStructure: false
+
+  # Automation Agent dashboards (Phase 5)
+  - name: 'Automation'
+    orgId: 1
+    folder: 'Automation'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/automation
+      foldersFromFilesStructure: false

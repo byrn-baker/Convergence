@@ -1,0 +1,613 @@
+{
+  "uid": "automation-agent-v1",
+  "title": "Automation Agent",
+  "description": "Phase 5 event-driven automation: session audit, pending approvals, pfSense action outcomes, and GAIT audit trail.",
+  "tags": ["automation", "phase5", "pfsense", "gait"],
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+
+    {
+      "type": "row",
+      "id": 100,
+      "title": "Summary",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+
+    {
+      "type": "stat",
+      "id": 1,
+      "title": "DRY RUN Mode",
+      "description": "When ON, no pfSense changes are made. Set DRY_RUN=false in .env to enable live actions.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "blue", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "true": { "text": "DRY RUN ON", "color": "blue", "index": 0 } } },
+            { "type": "value", "options": { "false": { "text": "LIVE MODE", "color": "green", "index": 1 } } }
+          ]
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^dry_run$/", "values": false } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+          "type": "json", "source": "url", "format": "json",
+          "url": "http://automation-agent:8000/health",
+          "url_options": { "method": "GET" },
+          "columns": [{ "selector": "dry_run", "text": "dry_run", "type": "string" }]
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 2,
+      "title": "Pending Approvals",
+      "description": "Sessions waiting for human POST to /api/automation/approve/{id}",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_pending_approvals",
+          "legendFormat": "Pending"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 3,
+      "title": "Actions This Hour",
+      "description": "Live actions taken in the rolling 60-min window vs MAX_ACTIONS_PER_HOUR",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "increase(automation_actions_total{status=\"success\"}[1h])",
+          "legendFormat": "Live Actions"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "Total Qualifying IPs",
+      "description": "Cumulative IPs that met the action threshold and passed FP filter",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_qualifying_ips_total",
+          "legendFormat": "Qualifying IPs"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "GAIT Commits",
+      "description": "Total git commits written to the audit trail",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_audit_commits_total",
+          "legendFormat": "Commits"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 6,
+      "title": "Last Poll",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeFromNow",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 900000 },
+              { "color": "red", "value": 1800000 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_last_poll_timestamp_seconds * 1000",
+          "legendFormat": "Last Poll"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "id": 200,
+      "title": "Recent Automation Sessions",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+
+    {
+      "type": "table",
+      "id": 10,
+      "title": "Recent Automation Sessions (last 100)",
+      "description": "All sessions from the current run. Each row = one IP evaluated. Status: dry_run | pending | success | fail | skipped.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "score" },
+            "properties": [
+              { "id": "custom.width", "value": 60 },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null },
+                { "color": "orange", "value": 50 },
+                { "color": "red", "value": 75 }
+              ]}},
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "status" },
+            "properties": [
+              { "id": "custom.width", "value": 90 },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "dry_run": { "text": "DRY RUN", "color": "blue", "index": 0 } } },
+                { "type": "value", "options": { "pending": { "text": "PENDING ⏳", "color": "orange", "index": 1 } } },
+                { "type": "value", "options": { "success": { "text": "SUCCESS ✓", "color": "green", "index": 2 } } },
+                { "type": "value", "options": { "fail": { "text": "FAILED ✗", "color": "red", "index": 3 } } },
+                { "type": "value", "options": { "skipped": { "text": "SKIPPED", "color": "grey", "index": 4 } } }
+              ]},
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "session_id" },
+            "properties": [{ "id": "custom.width", "value": 230 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "reason" },
+            "properties": [{ "id": "custom.width", "value": 300 }]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "timestamp", "desc": true }] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+          "type": "json", "source": "url", "format": "json",
+          "url": "http://automation-agent:8000/api/infinity/sessions",
+          "url_options": { "method": "GET" },
+          "columns": [
+            { "selector": "timestamp",             "text": "timestamp",    "type": "string" },
+            { "selector": "ip",                    "text": "IP",           "type": "string" },
+            { "selector": "score",                 "text": "score",        "type": "number" },
+            { "selector": "direction",             "text": "direction",    "type": "string" },
+            { "selector": "status",                "text": "status",       "type": "string" },
+            { "selector": "proposed_action_type",  "text": "action",       "type": "string" },
+            { "selector": "value",                 "text": "cidr",         "type": "string" },
+            { "selector": "confidence",            "text": "confidence",   "type": "string" },
+            { "selector": "reason",                "text": "reason",       "type": "string" },
+            { "selector": "session_id",            "text": "session_id",   "type": "string" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "id": 300,
+      "title": "Pending Approvals",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }
+    },
+
+    {
+      "type": "table",
+      "id": 20,
+      "title": "Pending Human Approvals",
+      "description": "Sessions waiting for operator action. To approve: POST http://localhost:8002/api/automation/approve/{session_id}   To reject: DELETE same URL.",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "score" },
+            "properties": [
+              { "id": "custom.width", "value": 60 },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null },
+                { "color": "orange", "value": 50 },
+                { "color": "red", "value": 75 }
+              ]}},
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "expires_in_minutes" },
+            "properties": [
+              { "id": "custom.width", "value": 110 },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "red", "value": null },
+                { "color": "orange", "value": 30 },
+                { "color": "green", "value": 120 }
+              ]}},
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "unit", "value": "none" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "reason" },
+            "properties": [{ "id": "custom.width", "value": 320 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "session_id" },
+            "properties": [{ "id": "custom.width", "value": 230 }]
+          }
+        ]
+      },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+          "type": "json", "source": "url", "format": "json",
+          "url": "http://automation-agent:8000/api/infinity/pending",
+          "url_options": { "method": "GET" },
+          "columns": [
+            { "selector": "ip",                  "text": "IP",                "type": "string" },
+            { "selector": "score",               "text": "score",             "type": "number" },
+            { "selector": "action_type",         "text": "action",            "type": "string" },
+            { "selector": "value",               "text": "cidr",              "type": "string" },
+            { "selector": "confidence",          "text": "confidence",        "type": "string" },
+            { "selector": "expires_in_minutes",  "text": "expires_in_minutes","type": "number" },
+            { "selector": "reason",              "text": "reason",            "type": "string" },
+            { "selector": "session_id",          "text": "session_id",        "type": "string" },
+            { "selector": "created_at",          "text": "created_at",        "type": "string" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "id": 400,
+      "title": "Action Metrics",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }
+    },
+
+    {
+      "type": "timeseries",
+      "id": 30,
+      "title": "Automation Actions Over Time",
+      "description": "Cumulative action decisions by final status. In DRY_RUN mode you will see only the dry_run series increase.",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 26 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "increase(automation_actions_total[5m])",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+
+    {
+      "type": "gauge",
+      "id": 31,
+      "title": "Session Duration (p95)",
+      "description": "95th percentile wall-clock time for a full automation session (fetch → propose → execute → verify).",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0, "max": 600,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "orange", "value": 120 },
+              { "color": "red",    "value": 360 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "histogram_quantile(0.95, rate(automation_session_duration_seconds_bucket[30m]))",
+          "legendFormat": "p95 duration"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 32,
+      "title": "Rate Limited (Total)",
+      "description": "Actions skipped because the MAX_ACTIONS_PER_HOUR cap was reached.",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 30 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red",    "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_rate_limited_total",
+          "legendFormat": "Rate Limited"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 33,
+      "title": "Success Rate",
+      "description": "success / (success + fail). Only meaningful when DRY_RUN=false.",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "orange", "value": 0.7 },
+              { "color": "green",  "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_actions_total{status=\"success\"} / clamp_min(automation_actions_total{status=\"success\"} + automation_actions_total{status=\"fail\"}, 1)",
+          "legendFormat": "Success Rate"
+        }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "id": 34,
+      "title": "Total Skipped (no-action)",
+      "description": "Sessions where Claude returned no_action (FP, below threshold, CDN, etc.)",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 30 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "grey", "value": null }] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "automation_actions_total{status=\"skipped\"}",
+          "legendFormat": "Skipped"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "id": 500,
+      "title": "GAIT Audit Trail",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 }
+    },
+
+    {
+      "type": "table",
+      "id": 40,
+      "title": "GAIT Audit Trail — Recent Session Branches",
+      "description": "Each row is a git branch in the automation-audit volume. Inspect via: docker exec convergence-automation-agent git -C /app/audit-repo log --oneline {branch}",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 35 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "branch" },
+            "properties": [{ "id": "custom.width", "value": 340 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "last_commit" },
+            "properties": [{ "id": "custom.width", "value": 280 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "committed_at" },
+            "properties": [{ "id": "custom.width", "value": 200 }]
+          }
+        ]
+      },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "automation-agent" },
+          "type": "json", "source": "url", "format": "json",
+          "url": "http://automation-agent:8000/api/infinity/audit",
+          "url_options": { "method": "GET" },
+          "columns": [
+            { "selector": "branch",       "text": "branch",       "type": "string" },
+            { "selector": "committed_at", "text": "committed_at", "type": "string" },
+            { "selector": "last_commit",  "text": "last_commit",  "type": "string" },
+            { "selector": "files",        "text": "files",        "type": "number" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "id": 600,
+      "title": "Service Health",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 }
+    },
+
+    {
+      "type": "timeseries",
+      "id": 50,
+      "title": "Audit Commits Over Time",
+      "description": "Rate of GAIT git commits — a healthy running agent should show a steady trickle.",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 46 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "increase(automation_audit_commits_total[5m])",
+          "legendFormat": "Audit Commits / 5m"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "id": 51,
+      "title": "Qualifying IPs Rate",
+      "description": "Rate of IPs that cleared the action threshold (score >= 80, known_bad_actor, not FP).",
+      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 46 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
+          "expr": "increase(automation_qualifying_ips_total[10m])",
+          "legendFormat": "Qualifying IPs / 10m"
+        }
+      ]
+    }
+
+  ]
+}

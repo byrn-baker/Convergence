@@ -1,13 +1,137 @@
 # Convergence Platform - Project Status
 
-**Last Updated:** 2026-02-14
-**Current Phase:** Phase 2 - Monitoring Foundation Complete
+**Last Updated:** 2026-02-25
+**Current Phase:** Phase 5 — Event-Driven Automation Agent
+
+---
+
+## Phase Summary
+
+| Phase | Name | Status | Completed |
+|-------|------|--------|-----------|
+| 1 | Core Observability Stack (SNMP, VictoriaMetrics, Grafana) | ✅ Complete | 2026-02-14 |
+| 2 | pfSense Firewall Integration + GeoIP Enrichment | ✅ Complete | ~2026-02-15 |
+| 3 | Alerting (Loki Rules + Grafana + Alertmanager) | ✅ Complete | ~2026-02-18 |
+| 4 | AI Threat Intelligence Service | ✅ Complete | 2026-02-21 |
+| **5** | **Event-Driven Automation Agent** | ✅ **Complete** (DRY_RUN) | **2026-02-25** |
+
+---
+
+## Phase 5: Event-Driven Automation Agent — 2026-02-25
+
+### What Was Built
+
+A new `automation-agent` FastAPI microservice that polls threat-intel every 10 minutes, uses
+Claude Haiku to propose pfBlockerNG block actions for high-risk IPs, gates on human Discord
+approval (or auto-approves above a score threshold), and commits an immutable GAIT audit trail
+to a dedicated git repository for every decision.
+
+```
+threat-intel (/api/infinity/blocked_ips + /api/report)
+    ↓
+automation-agent (FastAPI + APScheduler)   → http://localhost:8002
+    ├─ Filter: score >= 80, known_bad_actor, not FP, not processed recently
+    ├─ Redis dedup + sliding-window rate limit (5 actions/hour)
+    ├─ GAIT audit trail: git branch per session, JSON turn files committed at every step
+    ├─ Claude Haiku: tight action-proposal prompt → structured JSON
+    ├─ DRY_RUN=true (default): log + Discord blue embed, no pfSense changes
+    ├─ score < 95: Discord orange approval embed → POST /approve/{id} to execute
+    ├─ score >= 95: auto-execute → 5 min wait → verify → rollback on fail
+    └─ pfBlockerNG executor: XML-RPC + SSH stubs ready for real credentials
+```
+
+### New Services (post-Phase 5)
+
+| Container | Port | Status |
+|-----------|------|--------|
+| convergence-automation-agent | 8002 | ✅ Running (DRY_RUN=true) |
+
+Total services: **9** (+ automation-agent added to existing 8)
+
+### Phase 5 Status
+
+- **GAIT audit trail**: ✅ git branch-per-session with 8 sequential turn files
+- **Claude action proposals**: ✅ structured JSON with safety constraints
+- **Discord notifications**: ✅ approval-required + outcome embeds
+- **Rate limiting**: ✅ Redis sliding window + IP dedup TTL
+- **Pre/post baseline verification**: ✅ VictoriaMetrics PromQL diff
+- **pfSense integration**: ⬜ Stubs implemented, credentials not yet wired
+- **Grafana dashboard**: ✅ Automation folder with sessions, pending, metrics, audit rows
+
+### API Keys / Config Required for Full Activation
+
+| Variable | Required For |
+|---|---|
+| `DISCORD_WEBHOOK_URL` | Approval notifications (works in DRY_RUN too) |
+| `PFSENSE_HOST` + `PFSENSE_XMLRPC_PASS` | Live pfSense blocking (DRY_RUN=false) |
+| `DRY_RUN=false` | Any real pfSense changes |
+
+---
+
+## Phase 4: AI Threat Intelligence — Completed 2026-02-21
+
+### What Was Built
+
+A new `threat-intel` FastAPI microservice enriches top blocked/outbound IPs with four threat intelligence APIs, generates AI threat narratives via Claude Haiku, and surfaces everything in a new Grafana "Threat Intelligence" dashboard.
+
+```
+VictoriaMetrics (firewall_events_total)
+    │ PromQL — top 50 blocked + top 20 outbound IPs
+    ▼
+threat-intel (FastAPI + APScheduler)   → http://localhost:8001
+    ├─ Startup + hourly enrichment job
+    │   ├─ Redis cache check (24h TTL per IP)
+    │   ├─ AbuseIPDB  /v2/check          (confidence score 0-100)
+    │   ├─ GreyNoise  /v3/community/{ip} (malicious/benign/riot)
+    │   ├─ OTX        /api/v1/indicators (threat pulse count)
+    │   ├─ IPInfo     /{ip}              (country, org, ASN)
+    │   ├─ Port analysis via Loki LogQL regexp extraction
+    │   └─ Claude Haiku → structured JSON threat narrative
+    ├─ GET /health         → {"status":"ok","report_available":true}
+    ├─ GET /metrics        → Prometheus format → scraped by VictoriaMetrics
+    ├─ GET /api/report     → full JSON threat report
+    └─ GET /api/report/blocked|outbound → filtered JSON
+```
+
+### New Services (post-Phase 4)
+
+| Container | Port | Status |
+|-----------|------|--------|
+| convergence-threat-intel | 8001 | ✅ Up |
+
+Total services: **8** (+ threat-intel added to existing 7)
+
+### Verified on 2026-02-21
+
+- **50 blocked IPs enriched** with GreyNoise + IPInfo (malicious CNs, RUs, etc. correctly classified)
+- **20 outbound IPs enriched**
+- **84 IPs cached** in Redis with 24h TTL
+- **440 Prometheus samples** scraped by VictoriaMetrics every 30s
+- **10 threat_intel_* metrics** flowing (see full list in PHASE4_THREAT_INTELLIGENCE.md)
+- **Claude Haiku narrative** working (`claude-haiku-4-5-20251001`, risk_level: low)
+- **Infinity datasource** v3.7.1 installed and querying `/api/report`
+- **"Threat Intelligence" dashboard** provisioned in Grafana
+
+### API Keys Status
+
+| Key | Status | Impact |
+|-----|--------|--------|
+| `ANTHROPIC_API_KEY` | ✅ Active | Claude narratives working |
+| `GREYNOISE_API_KEY` | ⬜ Not set | Community API works (rate-limited to ~60/min) |
+| `ABUSEIPDB_API_KEY` | ⬜ Not set | AbuseIPDB scores show 0 |
+| `OTX_API_KEY` | ⬜ Not set | OTX pulse counts show 0 |
+| `IPINFO_TOKEN` | ⬜ Not set | Country/org from GreyNoise fallback |
+
+### Bugs Fixed During Deployment
+
+1. **GreyNoise 429 rate limit**: 70 concurrent requests on startup triggered rate limiting. Fixed by adding `asyncio.Semaphore(3)` + 150ms inter-request delay in `greynoise.py`.
+2. **Claude empty/fence-wrapped response**: Added empty-response detection with stop_reason logging, plus markdown code-fence stripping before JSON parse.
 
 ---
 
 ## Overview
 
-The Convergence platform is a network monitoring and automation system that integrates OpenTelemetry Collector (OTELCOL), Nautobot as the source of truth, VictoriaMetrics for time-series data, and Grafana for visualization. The platform currently monitors network devices via SNMP with automatic device discovery from Nautobot.
+The Convergence platform is a network monitoring, security, and AI intelligence system that integrates OpenTelemetry Collector (OTELCOL), Nautobot as the source of truth, VictoriaMetrics for time-series data, Loki for logs, and Grafana for visualization. It now includes AI-powered threat intelligence enrichment for firewall events.
 
 ---
 
@@ -379,6 +503,35 @@ curl -s 'http://localhost:8428/api/v1/query?query=count(interface_in_octets_byte
 ---
 
 ## Change Log
+
+### 2026-02-25 — Phase 5: Event-Driven Automation Agent
+- ✅ Built `services/automation-agent/` FastAPI service (19 new files, 2,395 lines)
+- ✅ APScheduler 10-min polling loop with per-IP session orchestration
+- ✅ GAIT audit trail: gitpython branch-per-session, 8 sequential JSON turn files
+- ✅ Claude Haiku action-proposal prompt with hard safety constraints
+- ✅ Discord webhook: approval-required orange embeds + dry-run/success/fail outcome embeds
+- ✅ Redis rate limiter (sliding window) + IP deduplication TTL
+- ✅ VictoriaMetrics baseline capture + post-action verification
+- ✅ pfBlockerNG executor stubs (XML-RPC + SSH paths) with TODO blocks for real credentials
+- ✅ 7 new Prometheus metrics (`automation_actions_total`, `session_duration`, etc.)
+- ✅ Grafana Automation dashboard (`dashboards/automation/automation-agent.json`)
+- ✅ Grafana Infinity datasource provisioned (`automation-agent.yaml`)
+- ✅ Added `automation-audit` Docker named volume for git persistence
+- 📝 Created `docs/PHASE5_AUTOMATION_AGENT.md`
+
+### 2026-02-21 — Phase 4: AI Threat Intelligence
+- ✅ Built `services/threat-intel/` FastAPI service (20 new files)
+- ✅ Integrated AbuseIPDB, GreyNoise, OTX, IPInfo enrichment clients
+- ✅ Composite threat scoring (50/30/20 weighting across 3 sources)
+- ✅ Redis caching (24h TTL, AbuseIPDB rate-limit guard at 900/day)
+- ✅ Claude Haiku AI narrative generation (executive summary, threats, recommendations)
+- ✅ 10 new Prometheus metrics flowing into VictoriaMetrics
+- ✅ Grafana Infinity datasource (yesoreyeram-infinity-datasource v3.7.1)
+- ✅ 7-row "Threat Intelligence" Grafana dashboard provisioned
+- ✅ Fixed GreyNoise 429 rate limiting (semaphore + delay)
+- ✅ Fixed Claude empty-response edge case
+- ✅ Updated `docker-compose.yml`, `prometheus.yml`, `convergence.yaml`, `.env`, `.env.example`
+- 📝 Created `docs/PHASE4_THREAT_INTELLIGENCE.md`
 
 ### 2026-02-14
 - ✅ Implemented GraphQL device discovery
