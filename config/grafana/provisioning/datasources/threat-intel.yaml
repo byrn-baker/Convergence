@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: ThreatIntel
+    type: yesoreyeram-infinity-datasource
+    uid: threat-intel
+    access: proxy
+    orgId: 1
+    isDefault: false
+    url: "http://threat-intel:8000"
+    jsonData:
+      base_url: "http://threat-intel:8000"
+      allowedHosts:
+        - "http://threat-intel:8000"
+    version: 1
+    editable: true
