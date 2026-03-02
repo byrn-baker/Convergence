@@ -10,60 +10,15 @@
     }
   ],
   "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "gauge",
-      "name": "Gauge",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "piechart",
-      "name": "Pie chart",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "barchart",
-      "name": "Bar chart",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "geomap",
-      "name": "Geomap",
-      "version": ""
-    }
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "gauge", "name": "Gauge", "version": "" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" },
+    { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+    { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+    { "type": "panel", "id": "geomap", "name": "Geomap", "version": "" }
   ],
   "annotations": {
     "list": [
@@ -92,1084 +47,943 @@
       "id": 100,
       "title": "🖥️ Hardware",
       "type": "row",
-      "panels": []
-    },
+      "panels": [
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null }
-            ]
-          },
-          "unit": "d",
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
-      "id": 1,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "title": "System Uptime",
-      "type": "stat",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_uptime_seconds{device_name=\"pfSense-FW01\"} / 86400",
-          "legendFormat": "Uptime",
-          "refId": "A"
-        }
-      ]
-    },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "unit": "d",
+              "decimals": 1
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+          "id": 1,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          },
+          "title": "System Uptime",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_uptime_seconds{device_name=\"pfSense-FW01\"} / 86400",
+              "legendFormat": "Uptime",
+              "refId": "A"
+            }
+          ]
+        },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "#EAB839", "value": 70 },
-              { "color": "red", "value": 90 }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
-      "id": 2,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "title": "CPU Usage",
-      "type": "gauge",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "100 - system_cpu_idle_ratio{device_name=\"pfSense-FW01\"}",
-          "legendFormat": "CPU %",
-          "refId": "A"
-        }
-      ]
-    },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "#EAB839", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+          "id": 2,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "title": "CPU Usage",
+          "type": "gauge",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "100 - system_cpu_idle_ratio{device_name=\"pfSense-FW01\"}",
+              "legendFormat": "CPU %",
+              "refId": "A"
+            }
+          ]
+        },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "unit": "percent"
+            },
+            "overrides": []
           },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "unit": "percent"
+          "gridPos": { "h": 4, "w": 16, "x": 8, "y": 1 },
+          "id": 3,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "CPU Over Time",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_cpu_user_ratio{device_name=\"pfSense-FW01\"}",
+              "legendFormat": "User",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_cpu_system_ratio{device_name=\"pfSense-FW01\"}",
+              "legendFormat": "System",
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_cpu_idle_ratio{device_name=\"pfSense-FW01\"}",
+              "legendFormat": "Idle",
+              "refId": "C"
+            }
+          ]
         },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 16, "x": 8, "y": 1 },
-      "id": 3,
-      "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "CPU Over Time",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_cpu_user_ratio{device_name=\"pfSense-FW01\"}",
-          "legendFormat": "User",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_cpu_system_ratio{device_name=\"pfSense-FW01\"}",
-          "legendFormat": "System",
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_cpu_idle_ratio{device_name=\"pfSense-FW01\"}",
-          "legendFormat": "Idle",
-          "refId": "C"
-        }
-      ]
-    },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "min": 0,
+              "unit": "short"
+            },
+            "overrides": []
           },
-          "mappings": [],
-          "min": 0,
-          "unit": "short"
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 5 },
+          "id": 4,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "Load Average",
+          "description": "1, 5, and 15-minute load averages. Raw SNMP values are integer × 100 (e.g. value 123 = load 1.23); divided by 100 here.",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_load_1min_ratio{device_name=\"pfSense-FW01\"} / 100",
+              "legendFormat": "1 min",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_load_5min_ratio{device_name=\"pfSense-FW01\"} / 100",
+              "legendFormat": "5 min",
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_load_15min_ratio{device_name=\"pfSense-FW01\"} / 100",
+              "legendFormat": "15 min",
+              "refId": "C"
+            }
+          ]
         },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 5 },
-      "id": 4,
-      "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "Load Average",
-      "description": "1, 5, and 15-minute load averages. Raw SNMP values are integer × 100 (e.g. value 123 = load 1.23); divided by 100 here.",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_load_1min_ratio{device_name=\"pfSense-FW01\"} / 100",
-          "legendFormat": "1 min",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_load_5min_ratio{device_name=\"pfSense-FW01\"} / 100",
-          "legendFormat": "5 min",
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_load_15min_ratio{device_name=\"pfSense-FW01\"} / 100",
-          "legendFormat": "15 min",
-          "refId": "C"
-        }
-      ]
-    },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 5 },
-      "id": 5,
-      "options": {
-        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "RAM Usage",
-      "type": "timeseries",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "(system_memory_total_kilobytes{device_name=\"pfSense-FW01\"} - system_memory_available_kilobytes{device_name=\"pfSense-FW01\"}) / system_memory_total_kilobytes{device_name=\"pfSense-FW01\"} * 100",
-          "legendFormat": "RAM Used %",
-          "refId": "A"
-        }
-      ]
-    },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 8, "x": 8, "y": 5 },
+          "id": 5,
+          "options": {
+            "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "RAM Usage",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "(system_memory_total_kilobytes{device_name=\"pfSense-FW01\"} - system_memory_available_kilobytes{device_name=\"pfSense-FW01\"}) / system_memory_total_kilobytes{device_name=\"pfSense-FW01\"} * 100",
+              "legendFormat": "RAM Used %",
+              "refId": "A"
+            }
+          ]
+        },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 5 },
-      "id": 6,
-      "options": {
-        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "Disk Utilization",
-      "description": "Percentage used per storage partition (hrStorage table). Partitions with zero blocks are filtered out.",
-      "type": "timeseries",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "system_storage_used_1{device_name=\"pfSense-FW01\"} / system_storage_size_1{device_name=\"pfSense-FW01\"} * 100 > 0",
-          "legendFormat": "{{ storage_description }}",
-          "refId": "A"
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 8, "x": 16, "y": 5 },
+          "id": 6,
+          "options": {
+            "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "Disk Utilization",
+          "description": "Percentage used per storage partition (hrStorage table). Partitions with zero blocks are filtered out.",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "system_storage_used_1{device_name=\"pfSense-FW01\"} / system_storage_size_1{device_name=\"pfSense-FW01\"} * 100 > 0",
+              "legendFormat": "{{ storage_description }}",
+              "refId": "A"
+            }
+          ]
         }
+
       ]
     },
 
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 1 },
       "id": 101,
       "title": "🔥 Firewall",
       "type": "row",
-      "panels": []
-    },
+      "panels": [
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1000 },
-              { "color": "red", "value": 10000 }
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1000 },
+                  { "color": "red", "value": 10000 }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 2 },
+          "id": 11,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+            "text": {},
+            "textMode": "auto"
+          },
+          "title": "Blocked Events (24 h)",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "increase(firewall_events_total{action=\"block\"}[24h])",
+              "legendFormat": "Blocked",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 20, "x": 4, "y": 2 },
+          "id": 12,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "Firewall Actions Over Time (Pass vs Block)",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "sum by (action) (rate(firewall_events_total[5m]))",
+              "legendFormat": "{{ action }}",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Events/s" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.cellOptions", "value": { "mode": "basic", "type": "color-background" } },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        { "color": "green", "value": null },
+                        { "color": "yellow", "value": 0.1 },
+                        { "color": "red", "value": 1 }
+                      ]
+                    }
+                  }
+                ]
+              }
             ]
           },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 10 },
-      "id": 11,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["sum"],
-          "fields": "",
-          "values": false
-        },
-        "text": {},
-        "textMode": "auto"
-      },
-      "title": "Blocked Events (24 h)",
-      "type": "stat",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "increase(firewall_events_total{action=\"block\"}[24h])",
-          "legendFormat": "Blocked",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "id": 13,
+          "options": {
+            "cellHeight": "sm",
+            "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+            "showHeader": true,
+            "sortBy": [{ "desc": true, "displayName": "Events/s" }]
           },
-          "mappings": [],
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 20, "x": 4, "y": 10 },
-      "id": 12,
-      "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "Firewall Actions Over Time (Pass vs Block)",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "sum by (action) (rate(firewall_events_total[5m]))",
-          "legendFormat": "{{ action }}",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Events/s" },
-            "properties": [
-              { "id": "unit", "value": "short" },
-              {
-                "id": "custom.cellOptions",
-                "value": { "mode": "basic", "type": "color-background" }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    { "color": "green", "value": null },
-                    { "color": "yellow", "value": 0.1 },
-                    { "color": "red", "value": 1 }
-                  ]
+          "title": "Top 100 Blocked Source IPs",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "src_ip": "Source IP",
+                  "src_country": "Country",
+                  "Value": "Events/s"
                 }
               }
-            ]
-          }
-        ]
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
-      "id": 13,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Events/s" }]
-      },
-      "title": "Top 100 Blocked Source IPs",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "src_ip": "Source IP",
-              "src_country": "Country",
-              "Value": "Events/s"
             }
-          }
-        }
-      ],
-      "type": "table",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(100, sum by (src_ip, src_country) (rate(firewall_events_total{action=\"block\"}[5m])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
-          "mappings": []
+          ],
+          "type": "table",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(100, sum by (src_ip, src_country) (rate(firewall_events_total{action=\"block\"}[5m])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
         },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
-      "id": 14,
-      "options": {
-        "displayLabels": ["percent"],
-        "legend": { "displayMode": "table", "placement": "right", "values": ["percent"] },
-        "pieType": "pie",
-        "tooltip": { "mode": "single", "sort": "none" }
-      },
-      "title": "Blocked Traffic by Protocol",
-      "type": "piechart",
-      "targets": [
+
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "sum by (proto_name) (rate(firewall_events_total{action=\"block\"}[5m]))",
-          "legendFormat": "{{ proto_name }}",
-          "refId": "A"
-        }
-      ]
-    },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "id": 14,
+          "options": {
+            "displayLabels": ["percent"],
+            "legend": { "displayMode": "table", "placement": "right", "values": ["percent"] },
+            "pieType": "pie",
+            "tooltip": { "mode": "single", "sort": "none" }
+          },
+          "title": "Blocked Traffic by Protocol",
+          "type": "piechart",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "sum by (proto_name) (rate(firewall_events_total{action=\"block\"}[5m]))",
+              "legendFormat": "{{ proto_name }}",
+              "refId": "A"
+            }
+          ]
+        },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "fillOpacity": 80,
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 80, "groupWidth": 0.7, "lineWidth": 1 },
+              "mappings": [],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+          "id": 15,
+          "options": {
+            "barWidth": 0.97,
             "groupWidth": 0.7,
-            "lineWidth": 1
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "orientation": "auto",
+            "showValue": "never",
+            "tooltip": { "mode": "single", "sort": "none" },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 200
           },
-          "mappings": [],
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
-      "id": 15,
-      "options": {
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "orientation": "auto",
-        "showValue": "never",
-        "tooltip": { "mode": "single", "sort": "none" },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 200
-      },
-      "title": "Traffic by Interface",
-      "type": "barchart",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(10, sum by (interface) (rate(firewall_events_total[5m])))",
-          "legendFormat": "{{ interface }}",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 100 },
-              { "color": "red", "value": 1000 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 30 },
-      "id": 16,
-      "options": {
-        "basemap": { "config": {}, "name": "Layer 0", "type": "default" },
-        "controls": {
-          "mouseWheelZoom": true,
-          "showAttribution": true,
-          "showDebug": false,
-          "showScale": false,
-          "showZoom": true
-        },
-        "layers": [
-          {
-            "config": {
-              "showLegend": true,
-              "style": {
-                "color": { "field": "Value", "fixed": "dark-red" },
-                "opacity": 0.8,
-                "rotation": { "fixed": 0, "max": 360, "min": -360, "mode": "mod" },
-                "size": { "field": "Value", "fixed": 5, "max": 15, "min": 2, "mode": "field" },
-                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
-                "symbolAlign": { "h": "center", "v": "center" }
-              }
-            },
-            "location": { "latitude": "src_lat", "longitude": "src_lon", "mode": "coords" },
-            "name": "Blocked Sources",
-            "tooltip": true,
-            "type": "markers"
-          }
-        ],
-        "tooltip": { "mode": "details" },
-        "view": { "allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 1 }
-      },
-      "title": "🌍 Geographic Map — All Blocked Source IPs",
-      "type": "geomap",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(100, sum by (src_ip, src_lat, src_lon, src_country) (increase(firewall_events_total{action=\"block\", direction=\"in\"}[1h])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "mappings": [],
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
-      "id": 17,
-      "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "Top Blocked Destination IPs",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(10, sum by (dst_ip) (rate(firewall_events_total{action=\"block\"}[5m])))",
-          "legendFormat": "{{ dst_ip }}",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
-      "id": 18,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Events" }]
-      },
-      "title": "Recent Firewall Events Summary",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "src_ip": "Src IP",
-              "src_country": "Src Country",
-              "dst_ip": "Dst IP",
-              "dst_country": "Dst Country",
-              "proto_name": "Protocol",
-              "action": "Action",
-              "Value": "Events"
+          "title": "Traffic by Interface",
+          "type": "barchart",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(10, sum by (interface) (rate(firewall_events_total[5m])))",
+              "legendFormat": "{{ interface }}",
+              "refId": "A"
             }
-          }
-        }
-      ],
-      "type": "table",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(20, sum by (src_ip, src_country, dst_ip, dst_country, proto_name, action) (increase(firewall_events_total[1h])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
+          ]
+        },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 100 },
-              { "color": "red", "value": 1000 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 50 },
-      "id": 19,
-      "options": {
-        "basemap": { "config": {}, "name": "Layer 0", "type": "default" },
-        "controls": {
-          "mouseWheelZoom": true,
-          "showAttribution": true,
-          "showDebug": false,
-          "showScale": false,
-          "showZoom": true
-        },
-        "layers": [
-          {
-            "config": {
-              "showLegend": true,
-              "style": {
-                "color": { "field": "Value", "fixed": "dark-orange" },
-                "opacity": 0.8,
-                "rotation": { "fixed": 0, "max": 360, "min": -360, "mode": "mod" },
-                "size": { "field": "Value", "fixed": 5, "max": 15, "min": 2, "mode": "field" },
-                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
-                "symbolAlign": { "h": "center", "v": "center" }
-              }
-            },
-            "location": { "latitude": "src_lat", "longitude": "src_lon", "mode": "coords" },
-            "name": "WAN Threats",
-            "tooltip": true,
-            "type": "markers"
-          }
-        ],
-        "tooltip": { "mode": "details" },
-        "view": { "allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 1 }
-      },
-      "title": "🌍 WAN Threats — Internet Attacks (GeoIP)",
-      "type": "geomap",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(100, sum by (src_ip, src_lat, src_lon, src_country) (increase(firewall_events_total{action=\"block\", direction=\"in\", interface=\"igc0.201\", src_ip!~\"^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)\"}[2h])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 100 },
+                  { "color": "red", "value": 1000 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 22 },
+          "id": 16,
+          "options": {
+            "basemap": { "config": {}, "name": "Layer 0", "type": "default" },
+            "controls": { "mouseWheelZoom": true, "showAttribution": true, "showDebug": false, "showScale": false, "showZoom": true },
+            "layers": [
+              {
+                "config": {
+                  "showLegend": true,
+                  "style": {
+                    "color": { "field": "Value", "fixed": "dark-red" },
+                    "opacity": 0.8,
+                    "rotation": { "fixed": 0, "max": 360, "min": -360, "mode": "mod" },
+                    "size": { "field": "Value", "fixed": 5, "max": 15, "min": 2, "mode": "field" },
+                    "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
+                    "symbolAlign": { "h": "center", "v": "center" }
+                  }
+                },
+                "location": { "latitude": "src_lat", "longitude": "src_lon", "mode": "coords" },
+                "name": "Blocked Sources",
+                "tooltip": true,
+                "type": "markers"
+              }
+            ],
+            "tooltip": { "mode": "details" },
+            "view": { "allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 1 }
+          },
+          "title": "🌍 Geographic Map — All Blocked Source IPs",
+          "type": "geomap",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(100, sum by (src_ip, src_lat, src_lon, src_country) (increase(firewall_events_total{action=\"block\", direction=\"in\"}[1h])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "blue", "value": null },
-              { "color": "green", "value": 100 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 64 },
-      "id": 20,
-      "options": {
-        "basemap": { "config": {}, "name": "Layer 0", "type": "default" },
-        "controls": {
-          "mouseWheelZoom": true,
-          "showAttribution": true,
-          "showDebug": false,
-          "showScale": false,
-          "showZoom": true
-        },
-        "layers": [
-          {
-            "config": {
-              "showLegend": true,
-              "style": {
-                "color": { "field": "Value #B", "fixed": "dark-red" },
-                "opacity": 0.7,
-                "size": { "field": "Value #B", "fixed": 5, "max": 12, "min": 2, "mode": "field" },
-                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" }
-              }
-            },
-            "location": { "latitude": "dst_lat", "longitude": "dst_lon", "mode": "coords" },
-            "name": "Blocked Destinations",
-            "tooltip": true,
-            "type": "markers"
-          },
-          {
-            "config": {
-              "showLegend": true,
-              "style": {
-                "color": { "field": "Value #A", "fixed": "dark-green" },
-                "opacity": 0.5,
-                "size": { "field": "Value #A", "fixed": 5, "max": 10, "min": 2, "mode": "field" },
-                "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" }
-              }
-            },
-            "location": { "latitude": "dst_lat", "longitude": "dst_lon", "mode": "coords" },
-            "name": "Passed Destinations",
-            "tooltip": true,
-            "type": "markers"
-          }
-        ],
-        "tooltip": { "mode": "details" },
-        "view": { "allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 2 }
-      },
-      "title": "🗺️ Traffic Destinations — Where Your Network Communicates",
-      "type": "geomap",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"pass\", direction=\"out\"}[1h])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "Passed",
-          "refId": "A"
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+          "id": 17,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "Top Blocked Destination IPs",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(10, sum by (dst_ip) (rate(firewall_events_total{action=\"block\"}[5m])))",
+              "legendFormat": "{{ dst_ip }}",
+              "refId": "A"
+            }
+          ]
         },
+
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"block\", direction=\"out\"}[1h])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "Blocked",
-          "refId": "B"
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+          "id": 18,
+          "options": {
+            "cellHeight": "sm",
+            "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+            "showHeader": true,
+            "sortBy": [{ "desc": true, "displayName": "Events" }]
+          },
+          "title": "Recent Firewall Events Summary",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "src_ip": "Src IP",
+                  "src_country": "Src Country",
+                  "dst_ip": "Dst IP",
+                  "dst_country": "Dst Country",
+                  "proto_name": "Protocol",
+                  "action": "Action",
+                  "Value": "Events"
+                }
+              }
+            }
+          ],
+          "type": "table",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(20, sum by (src_ip, src_country, dst_ip, dst_country, proto_name, action) (increase(firewall_events_total[1h])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 100 },
+                  { "color": "red", "value": 1000 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 42 },
+          "id": 19,
+          "options": {
+            "basemap": { "config": {}, "name": "Layer 0", "type": "default" },
+            "controls": { "mouseWheelZoom": true, "showAttribution": true, "showDebug": false, "showScale": false, "showZoom": true },
+            "layers": [
+              {
+                "config": {
+                  "showLegend": true,
+                  "style": {
+                    "color": { "field": "Value", "fixed": "dark-orange" },
+                    "opacity": 0.8,
+                    "rotation": { "fixed": 0, "max": 360, "min": -360, "mode": "mod" },
+                    "size": { "field": "Value", "fixed": 5, "max": 15, "min": 2, "mode": "field" },
+                    "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" },
+                    "symbolAlign": { "h": "center", "v": "center" }
+                  }
+                },
+                "location": { "latitude": "src_lat", "longitude": "src_lon", "mode": "coords" },
+                "name": "WAN Threats",
+                "tooltip": true,
+                "type": "markers"
+              }
+            ],
+            "tooltip": { "mode": "details" },
+            "view": { "allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 1 }
+          },
+          "title": "🌍 WAN Threats — Internet Attacks (GeoIP)",
+          "type": "geomap",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(100, sum by (src_ip, src_lat, src_lon, src_country) (increase(firewall_events_total{action=\"block\", direction=\"in\", interface=\"igc0.201\", src_ip!~\"^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)\"}[2h])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "blue", "value": null },
+                  { "color": "green", "value": 100 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 56 },
+          "id": 20,
+          "options": {
+            "basemap": { "config": {}, "name": "Layer 0", "type": "default" },
+            "controls": { "mouseWheelZoom": true, "showAttribution": true, "showDebug": false, "showScale": false, "showZoom": true },
+            "layers": [
+              {
+                "config": {
+                  "showLegend": true,
+                  "style": {
+                    "color": { "field": "Value #B", "fixed": "dark-red" },
+                    "opacity": 0.7,
+                    "size": { "field": "Value #B", "fixed": 5, "max": 12, "min": 2, "mode": "field" },
+                    "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" }
+                  }
+                },
+                "location": { "latitude": "dst_lat", "longitude": "dst_lon", "mode": "coords" },
+                "name": "Blocked Destinations",
+                "tooltip": true,
+                "type": "markers"
+              },
+              {
+                "config": {
+                  "showLegend": true,
+                  "style": {
+                    "color": { "field": "Value #A", "fixed": "dark-green" },
+                    "opacity": 0.5,
+                    "size": { "field": "Value #A", "fixed": 5, "max": 10, "min": 2, "mode": "field" },
+                    "symbol": { "fixed": "img/icons/marker/circle.svg", "mode": "fixed" }
+                  }
+                },
+                "location": { "latitude": "dst_lat", "longitude": "dst_lon", "mode": "coords" },
+                "name": "Passed Destinations",
+                "tooltip": true,
+                "type": "markers"
+              }
+            ],
+            "tooltip": { "mode": "details" },
+            "view": { "allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 2 }
+          },
+          "title": "🗺️ Traffic Destinations — Where Your Network Communicates",
+          "type": "geomap",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"pass\", direction=\"out\"}[1h])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "Passed",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "topk(100, sum by (dst_ip, dst_lat, dst_lon, dst_country) (increase(firewall_events_total{action=\"block\", direction=\"out\"}[1h])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "Blocked",
+              "refId": "B"
+            }
+          ]
         }
+
       ]
     },
 
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 78 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 2 },
       "id": 102,
       "title": "🌐 Network Stats",
       "type": "row",
-      "panels": []
-    },
+      "panels": [
 
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "mappings": [],
-          "min": 0,
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 79 },
-      "id": 21,
-      "options": {
-        "legend": { "calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "Gateway RTT",
-      "description": "⚠️ TODO — Gateway RTT requires a separate ping exporter.\n\nOptions:\n• blackbox_exporter with ICMP probe (probe_duration_seconds)\n• Telegraf ping input plugin targeting gateway IPs\n• pfSense node_exporter (FreeBSD port)\n\nOnce configured, replace the placeholder query with:\nprobe_duration_seconds{instance=\"<gateway_ip>\"} * 1000",
-      "type": "timeseries",
-      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "vector(0)",
-          "legendFormat": "RTT placeholder — configure ping exporter (see panel description)",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "filterable": false,
-            "inspect": false
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "min": 0,
+              "unit": "ms"
+            },
+            "overrides": []
           },
-          "mappings": [
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 3 },
+          "id": 21,
+          "options": {
+            "legend": { "calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "title": "Gateway RTT",
+          "description": "⚠️ TODO — Gateway RTT requires a separate ping exporter.\n\nOptions:\n• blackbox_exporter with ICMP probe (probe_duration_seconds)\n• Telegraf ping input plugin targeting gateway IPs\n• pfSense node_exporter (FreeBSD port)\n\nOnce configured, replace the placeholder query with:\nprobe_duration_seconds{instance=\"<gateway_ip>\"} * 1000",
+          "type": "timeseries",
+          "targets": [
             {
-              "options": {
-                "1": { "color": "green", "index": 0, "text": "🟢 Up" },
-                "2": { "color": "red", "index": 1, "text": "🔴 Down" },
-                "3": { "color": "yellow", "index": 2, "text": "🟡 Testing" },
-                "7": { "color": "orange", "index": 3, "text": "🟠 Lower Layer Down" }
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "vector(0)",
+              "legendFormat": "RTT placeholder — configure ping exporter (see panel description)",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "filterable": false, "inspect": false },
+              "mappings": [
+                {
+                  "options": {
+                    "1": { "color": "green", "index": 0, "text": "🟢 Up" },
+                    "2": { "color": "red", "index": 1, "text": "🔴 Down" },
+                    "3": { "color": "yellow", "index": 2, "text": "🟡 Testing" },
+                    "7": { "color": "orange", "index": 3, "text": "🟠 Lower Layer Down" }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Interface" },
+                "properties": [{ "id": "custom.width", "value": 100 }]
               },
-              "type": "value"
+              {
+                "matcher": { "id": "byName", "options": "Friendly Name" },
+                "properties": [{ "id": "custom.width", "value": 120 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Physical Address" },
+                "properties": [{ "id": "custom.width", "value": 150 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Status" },
+                "properties": [
+                  { "id": "custom.width", "value": 140 },
+                  { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+                ]
+              }
+            ]
+          },
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 3 },
+          "id": 22,
+          "options": {
+            "cellHeight": "sm",
+            "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+            "showHeader": true,
+            "sortBy": [{ "desc": false, "displayName": "Interface" }]
+          },
+          "title": "Interface Summary",
+          "description": "Interface status, friendly name, and MAC address from SNMP IF-MIB. MAC address format depends on pfSense SNMP agent encoding. See the Interface IP Mapping panel for IPv4/subnet data.",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true, "__name__": true, "device_ip": true, "device_model": true,
+                  "device_role": true, "device_site": true, "device_vendor": true,
+                  "job": true, "instance": true
+                },
+                "renameByName": {
+                  "interface_name": "Interface",
+                  "interface_description": "Friendly Name",
+                  "interface_mac": "Physical Address",
+                  "device_name": "Device",
+                  "Value": "Status"
+                }
+              }
             }
           ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          }
+          "type": "table",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "interface_operational_status_ratio{device_name=\"pfSense-FW01\"}",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Interface" },
-            "properties": [{ "id": "custom.width", "value": 100 }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Friendly Name" },
-            "properties": [{ "id": "custom.width", "value": 120 }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Physical Address" },
-            "properties": [{ "id": "custom.width", "value": 150 }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Status" },
-            "properties": [
-              { "id": "custom.width", "value": 140 },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+
+        {
+          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "filterable": false, "inspect": false },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "IPv4 Address" },
+                "properties": [{ "id": "custom.width", "value": 130 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Subnet Mask" },
+                "properties": [{ "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "ifIndex" },
+                "properties": [{ "id": "custom.width", "value": 70 }]
+              }
             ]
-          }
-        ]
-      },
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 79 },
-      "id": 22,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": false, "displayName": "Interface" }]
-      },
-      "title": "Interface Summary",
-      "description": "Interface status, friendly name, and MAC address from SNMP IF-MIB. MAC address format depends on pfSense SNMP agent encoding. See the Interface IP Mapping panel below for IPv4/subnet data.",
-      "transformations": [
-        {
-          "id": "organize",
+          },
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 9 },
+          "id": 23,
           "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "device_ip": true,
-              "device_model": true,
-              "device_role": true,
-              "device_site": true,
-              "device_vendor": true,
-              "job": true,
-              "instance": true
-            },
-            "renameByName": {
-              "interface_name": "Interface",
-              "interface_description": "Friendly Name",
-              "interface_mac": "Physical Address",
-              "device_name": "Device",
-              "Value": "Status"
+            "cellHeight": "sm",
+            "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+            "showHeader": true,
+            "sortBy": [{ "desc": false, "displayName": "IPv4 Address" }]
+          },
+          "title": "Interface IP Mapping",
+          "description": "IPv4 address to interface index (ifIndex) from IP-MIB ipAddrTable. Correlate ifIndex with Interface Summary above. Verify pfSense SNMP agent exposes ipAddrTable: snmpwalk -v2c -c <community> 192.168.3.1 1.3.6.1.2.1.4.20",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true, "__name__": true, "device_ip": true, "device_model": true,
+                  "device_role": true, "device_site": true, "device_vendor": true,
+                  "device_name": true, "job": true, "instance": true
+                },
+                "renameByName": {
+                  "ip_address": "IPv4 Address",
+                  "ip_netmask": "Subnet Mask",
+                  "Value": "ifIndex"
+                }
+              }
             }
-          }
-        }
-      ],
-      "type": "table",
-      "targets": [
+          ],
+          "type": "table",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "interface_ip_ifindex_ratio{device_name=\"pfSense-FW01\"}",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
+
         {
           "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "interface_operational_status_ratio{device_name=\"pfSense-FW01\"}",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "filterable": false,
-            "inspect": false
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+              "mappings": [],
+              "unit": "bps"
+            },
+            "overrides": []
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "IPv4 Address" },
-            "properties": [{ "id": "custom.width", "value": 130 }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Subnet Mask" },
-            "properties": [{ "id": "custom.width", "value": 140 }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "ifIndex" },
-            "properties": [{ "id": "custom.width", "value": 70 }]
-          }
-        ]
-      },
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 85 },
-      "id": 23,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": false, "displayName": "IPv4 Address" }]
-      },
-      "title": "Interface IP Mapping",
-      "description": "IPv4 address to interface index (ifIndex) from IP-MIB ipAddrTable. Correlate ifIndex with the Interface Summary table above. Requires pfSense SNMP agent to expose ipAddrTable — verify with: snmpwalk -v2c -c <community> 192.168.3.1 1.3.6.1.2.1.4.20",
-      "transformations": [
-        {
-          "id": "organize",
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 9 },
+          "id": 24,
           "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "device_ip": true,
-              "device_model": true,
-              "device_role": true,
-              "device_site": true,
-              "device_vendor": true,
-              "device_name": true,
-              "job": true,
-              "instance": true
-            },
-            "renameByName": {
-              "ip_address": "IPv4 Address",
-              "ip_netmask": "Subnet Mask",
-              "Value": "ifIndex"
-            }
-          }
-        }
-      ],
-      "type": "table",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "interface_ip_ifindex_ratio{device_name=\"pfSense-FW01\"}",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-
-    {
-      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
+            "legend": { "calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
           },
-          "mappings": [],
-          "unit": "bps"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 85 },
-      "id": 24,
-      "options": {
-        "legend": { "calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "title": "Interface Throughput (pfSense)",
-      "description": "Inbound and outbound traffic rates per interface in bits per second.",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "rate(interface_in_octets_bytes_total{device_name=\"pfSense-FW01\"}[5m]) * 8",
-          "legendFormat": "↓ {{ interface_name }}",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-          "expr": "rate(interface_out_octets_bytes_total{device_name=\"pfSense-FW01\"}[5m]) * 8",
-          "legendFormat": "↑ {{ interface_name }}",
-          "refId": "B"
+          "title": "Interface Throughput (pfSense)",
+          "description": "Inbound and outbound traffic rates per interface in bits per second.",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "rate(interface_in_octets_bytes_total{device_name=\"pfSense-FW01\"}[5m]) * 8",
+              "legendFormat": "↓ {{ interface_name }}",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+              "expr": "rate(interface_out_octets_bytes_total{device_name=\"pfSense-FW01\"}[5m]) * 8",
+              "legendFormat": "↑ {{ interface_name }}",
+              "refId": "B"
+            }
+          ]
         }
+
       ]
     }
 
@@ -1183,6 +997,6 @@
   "timezone": "",
   "title": "pfSense Firewall Security",
   "uid": "pfsense-firewall-security",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
