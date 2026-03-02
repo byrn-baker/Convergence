@@ -118,7 +118,7 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "100 - system_cpu_idle_ratio{device_name=\"pfSense-FW01\"}",
+              "expr": "avg(system_cpu_load_ratio{device_name=\"pfSense-FW01\"})",
               "legendFormat": "CPU %",
               "refId": "A"
             }
@@ -149,21 +149,9 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_cpu_user_ratio{device_name=\"pfSense-FW01\"}",
-              "legendFormat": "User",
+              "expr": "system_cpu_load_ratio{device_name=\"pfSense-FW01\"}",
+              "legendFormat": "{{ cpu_description }}",
               "refId": "A"
-            },
-            {
-              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_cpu_system_ratio{device_name=\"pfSense-FW01\"}",
-              "legendFormat": "System",
-              "refId": "B"
-            },
-            {
-              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_cpu_idle_ratio{device_name=\"pfSense-FW01\"}",
-              "legendFormat": "Idle",
-              "refId": "C"
             }
           ]
         },
@@ -186,27 +174,15 @@
             "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
             "tooltip": { "mode": "multi", "sort": "none" }
           },
-          "title": "Load Average",
-          "description": "1, 5, and 15-minute load averages. Raw SNMP values are integer × 100 (e.g. value 123 = load 1.23); divided by 100 here.",
+          "title": "CPU Load (all cores)",
+          "description": "Per-core CPU load % from HOST-RESOURCES-MIB hrProcessorLoad.\n\nNote: Load average (1/5/15 min) is not available via pfSense bsnmpd — it requires the UCD-SNMP-MIB ucd.so module. To enable: pfSense > Services > SNMP > Modules > check 'ucd'.\nRequires hostres.so module to be enabled in pfSense SNMP service.",
           "type": "timeseries",
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_load_1min_ratio{device_name=\"pfSense-FW01\"} / 100",
-              "legendFormat": "1 min",
+              "expr": "system_cpu_load_ratio{device_name=\"pfSense-FW01\"}",
+              "legendFormat": "{{ cpu_description }}",
               "refId": "A"
-            },
-            {
-              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_load_5min_ratio{device_name=\"pfSense-FW01\"} / 100",
-              "legendFormat": "5 min",
-              "refId": "B"
-            },
-            {
-              "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_load_15min_ratio{device_name=\"pfSense-FW01\"} / 100",
-              "legendFormat": "15 min",
-              "refId": "C"
             }
           ]
         },
@@ -231,11 +207,12 @@
             "tooltip": { "mode": "multi", "sort": "none" }
           },
           "title": "RAM Usage",
+          "description": "RAM used % from HOST-RESOURCES-MIB hrStorage 'Real Memory Metrics' entry.",
           "type": "timeseries",
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "(system_memory_total_kilobytes{device_name=\"pfSense-FW01\"} - system_memory_available_kilobytes{device_name=\"pfSense-FW01\"}) / system_memory_total_kilobytes{device_name=\"pfSense-FW01\"} * 100",
+              "expr": "system_storage_used{device_name=\"pfSense-FW01\", storage_description=\"Real Memory Metrics\"} / system_storage_size{device_name=\"pfSense-FW01\", storage_description=\"Real Memory Metrics\"} * 100",
               "legendFormat": "RAM Used %",
               "refId": "A"
             }
@@ -267,7 +244,7 @@
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
-              "expr": "system_storage_used_1{device_name=\"pfSense-FW01\"} / system_storage_size_1{device_name=\"pfSense-FW01\"} * 100 > 0",
+              "expr": "system_storage_used{device_name=\"pfSense-FW01\", storage_description!~\"UMA:.*\"} / system_storage_size{device_name=\"pfSense-FW01\", storage_description!~\"UMA:.*\"} * 100 > 0",
               "legendFormat": "{{ storage_description }}",
               "refId": "A"
             }

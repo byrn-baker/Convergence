@@ -106,13 +106,18 @@ snmp/pfsense-fw01:
     interface.name:
       indexed_value_prefix: ''
       oid: 1.3.6.1.2.1.2.2.1.2       # ifDescr
-    interface.mac:
-      indexed_value_prefix: ''
-      oid: 1.3.6.1.2.1.2.2.1.6       # ifPhysAddress (PhysAddress → hex string)
+    # NOTE: interface.mac (ifPhysAddress 1.3.6.1.2.1.2.2.1.6) intentionally
+    # omitted — bsnmpd returns raw 6-byte binary (PhysAddress type) which causes
+    # the OTEL SNMP receiver to silently drop entire metrics that reference it.
     # HOST-RESOURCES-MIB storage attributes (indexed by hrStorageIndex)
+    # Requires hostres.so module in pfSense SNMP service (Services > SNMP > Modules)
     storage.description:
       indexed_value_prefix: ''
       oid: 1.3.6.1.2.1.25.2.3.1.3    # hrStorageDescr (e.g. "Real Memory", "/", "/var")
+    # HOST-RESOURCES-MIB processor attributes (indexed by hrDeviceIndex)
+    cpu.description:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.25.3.2.1.3    # hrDeviceDescr (e.g. "GenuineIntel: Intel(R) Atom...")
     # IP-MIB attributes (indexed by ipAdEntAddr = the IP address itself)
     ip.address:
       indexed_value_prefix: ''
@@ -164,66 +169,19 @@ snmp/pfsense-fw01:
       - oid: 1.3.6.1.2.1.1.3.0
       unit: s
     # ------------------------------------------------------------------ #
-    # CPU — UCD-SNMP-MIB (ssCpu*, integer 0-100 percent)                  #
-    # Expected VM names: system_cpu_user_ratio / _system_ratio / _idle_ratio
+    # CPU — HOST-RESOURCES-MIB hrProcessorLoad (per-CPU load %)           #
+    # Requires hostres.so module: pfSense > Services > SNMP > Modules     #
+    # One data point per CPU core; label = cpu.description (hrDeviceDescr)#
+    # Expected VM name: system_cpu_load_ratio                             #
     # ------------------------------------------------------------------ #
-    system.cpu.user:
+    system.cpu.load:
+      column_oids:
+      - attributes:
+        - name: cpu.description
+        oid: 1.3.6.1.2.1.25.3.3.1.2   # hrProcessorLoad (0-100 %)
       gauge:
         value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.11.9.0   # ssCpuUser
       unit: '1'
-    system.cpu.system:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.11.10.0  # ssCpuSystem
-      unit: '1'
-    system.cpu.idle:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.11.11.0  # ssCpuIdle
-      unit: '1'
-    # ------------------------------------------------------------------ #
-    # Load averages — UCD-SNMP-MIB laLoadInt (integer × 100)              #
-    # e.g. load 1.23 → value 123; divide by 100 in Grafana queries        #
-    # Expected VM names: system_load_1min_ratio / _5min_ratio / _15min_ratio
-    # ------------------------------------------------------------------ #
-    system.load.1min:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.10.1.5.1  # laLoadInt.1
-      unit: '1'
-    system.load.5min:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.10.1.5.2  # laLoadInt.2
-      unit: '1'
-    system.load.15min:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.10.1.5.3  # laLoadInt.3
-      unit: '1'
-    # ------------------------------------------------------------------ #
-    # Memory — UCD-SNMP-MIB (values in kilobytes)                         #
-    # Expected VM names: system_memory_total_kilobytes / _available_kilobytes
-    # ------------------------------------------------------------------ #
-    system.memory.total:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.4.5.0   # memTotalReal
-      unit: kBy
-    system.memory.available:
-      gauge:
-        value_type: int
-      scalar_oids:
-      - oid: 1.3.6.1.4.1.2021.4.6.0   # memAvailReal
-      unit: kBy
     # ------------------------------------------------------------------ #
     # Disk/storage — HOST-RESOURCES-MIB hrStorage table                   #
     # storage.description label = hrStorageDescr (e.g. "Real Memory", "/")#
@@ -257,15 +215,15 @@ snmp/pfsense-fw01:
       unit: By
     # ------------------------------------------------------------------ #
     # Interface status — IF-MIB (1=up 2=down 3=testing 7=lowerLayerDown)  #
-    # Labels: interface.name, interface.description, interface.mac         #
+    # Uses only interface.name (ifDescr, MIB-II mibII.so) to avoid        #
+    # silent drops from ifAlias (ifXTable) which pfSense bsnmpd may not   #
+    # expose without additional modules.                                   #
     # Expected VM name: interface_operational_status_ratio                 #
     # ------------------------------------------------------------------ #
     interface.operational.status:
       column_oids:
       - attributes:
         - name: interface.name
-        - name: interface.description
-        - name: interface.mac
         oid: 1.3.6.1.2.1.2.2.1.8     # ifOperStatus
       gauge:
         value_type: int

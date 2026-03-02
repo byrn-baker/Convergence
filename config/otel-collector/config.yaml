@@ -184,11 +184,32 @@ receivers:
     version: v2c
     community: ${env:SNMP_COMMUNITY}
     attributes:
+      # IF-MIB interface attributes (indexed by ifIndex)
       interface.name:
-        oid: "1.3.6.1.2.1.2.2.1.2"
+        oid: "1.3.6.1.2.1.2.2.1.2"       # ifDescr
         indexed_value_prefix: ""
       interface.description:
-        oid: "1.3.6.1.2.1.31.1.1.1.18"
+        oid: "1.3.6.1.2.1.31.1.1.1.18"   # ifAlias (friendly name)
+        indexed_value_prefix: ""
+      # NOTE: interface.mac (ifPhysAddress 1.3.6.1.2.1.2.2.1.6) intentionally
+      # omitted — bsnmpd returns raw 6-byte binary (PhysAddress type) which
+      # causes the OTEL SNMP receiver to silently drop entire metrics that
+      # reference it.
+      # HOST-RESOURCES-MIB processor attributes (indexed by hrDeviceIndex)
+      # Requires hostres.so module loaded in pfSense SNMP service
+      cpu.description:
+        oid: "1.3.6.1.2.1.25.3.2.1.3"    # hrDeviceDescr
+        indexed_value_prefix: ""
+      # HOST-RESOURCES-MIB storage attributes (indexed by hrStorageIndex)
+      storage.description:
+        oid: "1.3.6.1.2.1.25.2.3.1.3"    # hrStorageDescr
+        indexed_value_prefix: ""
+      # IP-MIB attributes (indexed by ipAdEntAddr = the IP address itself)
+      ip.address:
+        oid: "1.3.6.1.2.1.4.20.1.1"      # ipAdEntAddr
+        indexed_value_prefix: ""
+      ip.netmask:
+        oid: "1.3.6.1.2.1.4.20.1.3"      # ipAdEntNetMask
         indexed_value_prefix: ""
     metrics:
       system.uptime:
@@ -227,6 +248,60 @@ receivers:
           - oid: "1.3.6.1.2.1.2.2.1.14"
             attributes:
               - name: interface.name
+      # IF-MIB interface operational status (1=up 2=down 3=testing)
+      interface.operational.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.8"   # ifOperStatus
+            attributes:
+              - name: interface.name
+      # IP-MIB: IP address → ifIndex mapping for Interface Summary table
+      interface.ip.ifindex:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.4.20.1.2"  # ipAdEntIfIndex
+            attributes:
+              - name: ip.address
+              - name: ip.netmask
+      # HOST-RESOURCES-MIB CPU load per core (requires hostres.so in pfSense)
+      system.cpu.load:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.25.3.3.1.2"  # hrProcessorLoad (0-100 %)
+            attributes:
+              - name: cpu.description
+      # HOST-RESOURCES-MIB storage (requires hostres.so in pfSense)
+      # Bytes used = hrStorageUsed * hrStorageAllocationUnits
+      system.storage.size:
+        unit: "{blocks}"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.25.2.3.1.5"  # hrStorageSize (blocks)
+            attributes:
+              - name: storage.description
+      system.storage.used:
+        unit: "{blocks}"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.25.2.3.1.6"  # hrStorageUsed (blocks)
+            attributes:
+              - name: storage.description
+      system.storage.allocation_units:
+        unit: "By"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.25.2.3.1.4"  # hrStorageAllocationUnits (bytes/block)
+            attributes:
+              - name: storage.description
 
 processors:
   # Memory limiter prevents OOM
