@@ -99,16 +99,34 @@ snmp/homeswitch02:
   version: v2c
 snmp/pfsense-fw01:
   attributes:
+    # IF-MIB interface attributes (indexed by ifIndex)
     interface.description:
       indexed_value_prefix: ''
-      oid: 1.3.6.1.2.1.31.1.1.1.18
+      oid: 1.3.6.1.2.1.31.1.1.1.18   # ifAlias / friendly name
     interface.name:
       indexed_value_prefix: ''
-      oid: 1.3.6.1.2.1.2.2.1.2
+      oid: 1.3.6.1.2.1.2.2.1.2       # ifDescr
+    interface.mac:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.2.2.1.6       # ifPhysAddress (PhysAddress → hex string)
+    # HOST-RESOURCES-MIB storage attributes (indexed by hrStorageIndex)
+    storage.description:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.25.2.3.1.3    # hrStorageDescr (e.g. "Real Memory", "/", "/var")
+    # IP-MIB attributes (indexed by ipAdEntAddr = the IP address itself)
+    ip.address:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.4.20.1.1      # ipAdEntAddr
+    ip.netmask:
+      indexed_value_prefix: ''
+      oid: 1.3.6.1.2.1.4.20.1.3      # ipAdEntNetMask
   collection_interval: 60s
   community: ${env:SNMP_COMMUNITY}
   endpoint: udp://192.168.3.1:161
   metrics:
+    # ------------------------------------------------------------------ #
+    # Existing interface traffic counters                                  #
+    # ------------------------------------------------------------------ #
     interface.in.errors:
       column_oids:
       - attributes:
@@ -145,6 +163,128 @@ snmp/pfsense-fw01:
       scalar_oids:
       - oid: 1.3.6.1.2.1.1.3.0
       unit: s
+    # ------------------------------------------------------------------ #
+    # CPU — UCD-SNMP-MIB (ssCpu*, integer 0-100 percent)                  #
+    # Expected VM names: system_cpu_user_ratio / _system_ratio / _idle_ratio
+    # ------------------------------------------------------------------ #
+    system.cpu.user:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.11.9.0   # ssCpuUser
+      unit: '1'
+    system.cpu.system:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.11.10.0  # ssCpuSystem
+      unit: '1'
+    system.cpu.idle:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.11.11.0  # ssCpuIdle
+      unit: '1'
+    # ------------------------------------------------------------------ #
+    # Load averages — UCD-SNMP-MIB laLoadInt (integer × 100)              #
+    # e.g. load 1.23 → value 123; divide by 100 in Grafana queries        #
+    # Expected VM names: system_load_1min_ratio / _5min_ratio / _15min_ratio
+    # ------------------------------------------------------------------ #
+    system.load.1min:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.10.1.5.1  # laLoadInt.1
+      unit: '1'
+    system.load.5min:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.10.1.5.2  # laLoadInt.2
+      unit: '1'
+    system.load.15min:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.10.1.5.3  # laLoadInt.3
+      unit: '1'
+    # ------------------------------------------------------------------ #
+    # Memory — UCD-SNMP-MIB (values in kilobytes)                         #
+    # Expected VM names: system_memory_total_kilobytes / _available_kilobytes
+    # ------------------------------------------------------------------ #
+    system.memory.total:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.4.5.0   # memTotalReal
+      unit: kBy
+    system.memory.available:
+      gauge:
+        value_type: int
+      scalar_oids:
+      - oid: 1.3.6.1.4.1.2021.4.6.0   # memAvailReal
+      unit: kBy
+    # ------------------------------------------------------------------ #
+    # Disk/storage — HOST-RESOURCES-MIB hrStorage table                   #
+    # storage.description label = hrStorageDescr (e.g. "Real Memory", "/")#
+    # Bytes used = hrStorageUsed * hrStorageAllocationUnits                #
+    # Expected VM names: system_storage_size_1 / _used_1 /                #
+    #                    system_storage_allocation_units_bytes             #
+    # ------------------------------------------------------------------ #
+    system.storage.size:
+      column_oids:
+      - attributes:
+        - name: storage.description
+        oid: 1.3.6.1.2.1.25.2.3.1.5   # hrStorageSize (allocation units)
+      gauge:
+        value_type: int
+      unit: '{blocks}'
+    system.storage.used:
+      column_oids:
+      - attributes:
+        - name: storage.description
+        oid: 1.3.6.1.2.1.25.2.3.1.6   # hrStorageUsed (allocation units)
+      gauge:
+        value_type: int
+      unit: '{blocks}'
+    system.storage.allocation_units:
+      column_oids:
+      - attributes:
+        - name: storage.description
+        oid: 1.3.6.1.2.1.25.2.3.1.4   # hrStorageAllocationUnits (bytes per block)
+      gauge:
+        value_type: int
+      unit: By
+    # ------------------------------------------------------------------ #
+    # Interface status — IF-MIB (1=up 2=down 3=testing 7=lowerLayerDown)  #
+    # Labels: interface.name, interface.description, interface.mac         #
+    # Expected VM name: interface_operational_status_ratio                 #
+    # ------------------------------------------------------------------ #
+    interface.operational.status:
+      column_oids:
+      - attributes:
+        - name: interface.name
+        - name: interface.description
+        - name: interface.mac
+        oid: 1.3.6.1.2.1.2.2.1.8     # ifOperStatus
+      gauge:
+        value_type: int
+      unit: '1'
+    # ------------------------------------------------------------------ #
+    # IP address mapping — IP-MIB ipAddrTable                             #
+    # Value = ifIndex (integer); labels carry ip.address + ip.netmask     #
+    # Used for Interface Summary table in Grafana (join by ifIndex)        #
+    # Expected VM name: interface_ip_ifindex_ratio                        #
+    # ------------------------------------------------------------------ #
+    interface.ip.ifindex:
+      column_oids:
+      - attributes:
+        - name: ip.address
+        - name: ip.netmask
+        oid: 1.3.6.1.2.1.4.20.1.2    # ipAdEntIfIndex
+      gauge:
+        value_type: int
+      unit: '1'
   version: v2c
 
 
