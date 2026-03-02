@@ -24,7 +24,7 @@ Convergence is a network observability platform built on OpenTelemetry Collector
 - **Event-Driven Automation**: Polls threat-intel every 10 minutes; Claude proposes pfSense blocking actions for high-risk IPs; executed live after human or auto approval
 - **Discord Bot Approval**: Five slash commands (`/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending`) for in-channel human review of automation decisions
 - **Repeat Offender Tracking**: Per-IP lifetime block counter in Redis; IPs blocked 5+ times or hammering 50+ events/hour get escalated durations and a permanent-block recommendation
-- **GAIT Audit Trail**: Every AI decision committed to an immutable git branch — 8 sequential JSON turn files record exactly what the agent saw, decided, and did
+- **GAIT Audit Trail**: Every AI decision committed to an immutable git branch — auto-approved sessions record 8 sequential JSON turns in one branch; human-approved sessions split across the original branch (scheduler turns 00–04) and a `{session_id}-approved` branch (approval + execution turns 00–03)
 - **Pre-built Dashboards**: 9 Grafana dashboards across Network, Security, Threat Intelligence, and Automation folders
 - **Intelligent Alerting**: Provisioned alert rules with Discord notifications via Alertmanager
 - **Loki Ruler**: LogQL-based recording rules and spike detection for firewall events
@@ -568,7 +568,7 @@ curl -s -u admin:admin http://localhost:3000/api/v1/provisioning/contact-points 
 - **Live automation**: polling threat-intel every 10m, Claude-proposed pfSense blocks via XML-RPC
 - **Discord bot approval**: `/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending` slash commands with human-bypassed rate limits
 - **Repeat offender tracking**: per-IP lifetime block counter; escalated TTL (168h) + permanent block recommendation at 5+ blocks or 50+ events/hour
-- **GAIT audit trail**: every AI decision committed to an immutable git branch with 8 JSON turn files
+- **GAIT audit trail**: every AI decision committed to an immutable git branch; Discord bot approvals now create a proper `{session_id}-approved` branch recording the full execution trail (approval → execution_result → verification → outcome)
 
 ### 🎯 Roadmap
 

@@ -1,7 +1,15 @@
 # Phase 5: Event-Driven Automation Agent
 
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-03-02
 **Status:** Live — XML-RPC alias mode active, Discord bot running, repeat-offender tracking enabled
+
+### Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-03-02 | Fixed GAIT not recording execution turns for Discord bot approvals (`discord_bot.py` was passing `session=None` despite a comment claiming the session was re-opened inside `execute_and_verify` — it was not). Both `/approve` and `/approve-all` now properly open a `{session_id}-approved` GAIT branch and record the full execution trail. |
+| 2026-03-02 | Identified that `PFSENSE_SSH_KEY_PATH` must reference a path **inside the container**, not the host filesystem. The `automation-audit` volume is the only volume mounted; host SSH keys are not accessible unless explicitly mounted in `docker-compose.yml`. |
+| 2026-02-25 | Initial Phase 5 release. |
 
 ---
 
@@ -64,6 +72,8 @@ automation-agent (FastAPI + APScheduler :8002)  ← poll every 10 min
     ├─ score < 95    → Discord orange embed → park in pending_approvals{}
     │                  mark_ip_processed(4h) — prevents re-alert on next poll cycle
     │                  Discord bot: /approve|/reject|/approve-all|/reject-all|/pending
+    │                  On approval → open new GAIT branch {session_id}-approved
+    │                               record: approval → execution_result → verification → outcome
     └─ score >= 95   → auto-execute → wait 5 min → verify → rollback on fail
             │         increment_block_count(ip) → mark_ip_processed(block_ttl_hours)
             ▼
@@ -211,7 +221,11 @@ DRY_RUN=false + score in [80, 95)
     └─ Discord orange embed sent to approval channel.
        mark_ip_processed(4h) — prevents re-alerting this IP on every poll cycle.
        Discord bot: /approve, /reject, /approve-all, /reject-all, /pending.
-       Human approval fires execute_and_verify() in background (bypasses rate limit).
+       Human approval:
+         → opens new GAIT branch {session_id}-approved
+         → records approval.json (approver, timestamp, channel)
+         → fires execute_and_verify() in background (bypasses rate limit)
+         → records execution_result, verification, outcome in GAIT
        Session expires after 4 hours with no action if ignored.
 
 DRY_RUN=false + score >= 95 (auto-approve)
@@ -351,6 +365,20 @@ inbound HTTPS is required — works in home-lab and NAT environments.
 | `/approve-all` | Approve every unexpired pending session immediately (no rate limit cap) |
 | `/reject-all` | Reject every unexpired pending session at once |
 
+### GAIT recording for Discord approvals
+
+Both `/approve` and `/approve-all` open a new `{session_id}-approved` git branch before firing
+the execution task. The branch records:
+
+1. `00_approval.json` — who approved (`approved_by`), when, and via which path (`discord` or
+   `discord_bulk`)
+2. `01_execution_result.json` — pfSense XML-RPC / REST API result
+3. `02_verification.json` — post-action metric comparison
+4. `03_outcome.json` — final sealed result
+
+This mirrors exactly what the REST API `/api/automation/approve/{id}` endpoint does. If execution
+fails the failure is visible in `01_execution_result.json` rather than disappearing silently.
+
 ### Rate limit behaviour
 
 `/approve-all` bypasses `MAX_ACTIONS_PER_HOUR`. The rate limit exists to protect the unattended
@@ -459,39 +487,80 @@ mounted at `/app/audit-repo` inside the container.
 
 ### Branch structure
 
+Every automation session creates one git branch from `main`. For human-approved sessions the
+trail is split across two branches — the scheduler creates the first, the approval handler
+creates the second.
+
+**Auto-approve sessions** (score ≥ `AUTO_APPROVE_THRESHOLD`): single branch, 8 turns.
+
 ```
-automation-audit/ (git repo)
-├── README.md
-└── sessions/
-    └── automation-20260225-143021-1-2-3-4/
-        ├── 00_input.json             Threat intel data + block_count + config snapshot
-        ├── 01_baseline.json          VictoriaMetrics metrics snapshot before any action
-        ├── 02_claude_prompt.txt      Exact text prompt sent to Claude (verbatim)
-        ├── 03_proposed_action.json   Claude's structured JSON response
-        ├── 04_decision.json          dry_run / pending / auto_approve decision
-        ├── 05_execution_result.json  pfSense action result (method, success, message)
-        ├── 06_verification.json      Post-action metric diff (before/after/pct_change)
-        └── 07_outcome.json           Final sealed outcome with timestamp
+automation-20260225-143021-1-2-3-4/
+    ├── 00_input.json             Threat intel data + block_count + config snapshot
+    ├── 01_baseline.json          VictoriaMetrics metrics snapshot before any action
+    ├── 02_claude_prompt.txt      Exact text prompt sent to Claude (verbatim)
+    ├── 03_proposed_action.json   Claude's structured JSON response
+    ├── 04_decision.json          auto_approve decision + score
+    ├── 05_execution_result.json  pfSense action result (method, success, message)
+    ├── 06_verification.json      Post-action metric diff (before/after/pct_change)
+    └── 07_outcome.json           Final sealed outcome with timestamp
 ```
+
+**Human-approved sessions** (score in `[AUTO_ACTION_THRESHOLD, AUTO_APPROVE_THRESHOLD)`):
+two branches. Original branch stops at turn 04 (`decision: pending_approval`). On approval a
+new `-approved` branch is created and the execution trail is recorded there.
+
+```
+automation-20260225-143021-1-2-3-4/          ← scheduler branch (turns 00–04)
+    ├── 00_input.json
+    ├── 01_baseline.json
+    ├── 02_claude_prompt.txt
+    ├── 03_proposed_action.json
+    └── 04_decision.json                     decision: pending_approval
+
+automation-20260225-143021-1-2-3-4-approved/ ← approval branch (turns 00–03)
+    ├── 00_approval.json                     who approved, when, via discord/api
+    ├── 01_execution_result.json             pfSense action result
+    ├── 02_verification.json                 post-action metric diff
+    └── 03_outcome.json                      final sealed outcome
+```
+
+The `-approved` branch name convention is the same whether approval comes from the Discord bot
+(`/approve`, `/approve-all`) or the REST API (`POST /api/automation/approve/{id}`).
 
 ### Inspecting the audit trail
 
 ```bash
-# List all automation sessions
+# List all automation sessions (including -approved branches)
 docker exec convergence-automation-agent \
   git -C /app/audit-repo branch -a
 
-# Review a specific session
+# Review a specific scheduler session (turns 00–04)
 docker exec convergence-automation-agent \
   git -C /app/audit-repo checkout automation-20260225-143021-1-2-3-4
 
-# Read what Claude proposed (including block history it saw)
+# Read what Claude proposed
 docker exec convergence-automation-agent \
   cat /app/audit-repo/sessions/automation-20260225-143021-1-2-3-4/03_proposed_action.json
 
-# See the full decision chain
+# Read the execution result for a human-approved session
+docker exec convergence-automation-agent \
+  git -C /app/audit-repo checkout automation-20260225-143021-1-2-3-4-approved
+docker exec convergence-automation-agent \
+  cat /app/audit-repo/sessions/automation-20260225-143021-1-2-3-4-approved/01_execution_result.json
+
+# See the full decision chain across both branches
 docker exec convergence-automation-agent \
   git -C /app/audit-repo log --oneline automation-20260225-143021-1-2-3-4
+docker exec convergence-automation-agent \
+  git -C /app/audit-repo log --oneline automation-20260225-143021-1-2-3-4-approved
+
+# Show all sessions that were actually executed (have an -approved branch)
+docker exec convergence-automation-agent \
+  git -C /app/audit-repo branch | grep '\-approved'
+
+# Inspect the audit repo directly from the host (even when the container is down)
+docker run --rm -v convergence-automation-audit:/audit --entrypoint /bin/sh alpine/git -c \
+  "git -C /audit branch | grep approved | wc -l"
 ```
 
 ---
@@ -676,6 +745,59 @@ This creates `AutoAgent_Block_v4` (or whatever `PFSENSE_FIREWALL_ALIAS` is set t
 
 ---
 
+### Approved IPs not appearing in pfSense alias
+
+**Symptom**: Discord bot responds "Approved — executing in background" but the `AutoAgent_Block_v4`
+alias in pfSense never grows. No red "Action Failed" notifications appear in Discord either.
+
+**Cause A (most common): Alias doesn't exist in pfSense.**
+The XML-RPC PHP code searches for the alias by name and echoes `alias_not_found` if it's missing.
+This raises a `RuntimeError` that falls through to the SSH path, which also fails (see Cause B).
+All paths fail → `execute_pfblocker_add` returns `success=False` → a red "Action Failed" Discord
+webhook is sent → if you're not monitoring that channel, it looks like silence.
+
+**Fix**: Run the setup endpoint once before going live — it creates the alias and WAN block rule
+idempotently via XML-RPC:
+```bash
+curl -s -X POST http://localhost:8002/api/automation/setup-pfsense | python3 -m json.tool
+# Expected: {"alias": "created", "rule": "created", "success": true}
+# Or:       {"alias": "exists",  "rule": "exists",  "success": true}
+```
+
+**Cause B: SSH key path not mounted in container.**
+`PFSENSE_SSH_KEY_PATH` must be a path **inside the container**. The automation-agent only mounts
+one volume (`automation-audit:/app/audit-repo`). A path like
+`PFSENSE_SSH_KEY_PATH=/home/ubuntu/.ssh/id_ed25519` refers to the host filesystem, which is not
+visible inside the container — paramiko will fail immediately with a file-not-found error.
+
+**Fix**: Either mount the key explicitly in `docker-compose.yml`:
+```yaml
+automation-agent:
+  volumes:
+    - automation-audit:/app/audit-repo
+    - /home/ubuntu/.ssh/pfsense_id_ed25519:/app/secrets/pfsense_id_ed25519:ro
+```
+Then set `PFSENSE_SSH_KEY_PATH=/app/secrets/pfsense_id_ed25519`. Or simply leave
+`PFSENSE_SSH_KEY_PATH` empty to disable the SSH path entirely — XML-RPC is the recommended path.
+
+**Cause C: GAIT audit trail previously hid these failures.**
+Prior to 2026-03-02, Discord bot approvals passed `session=None` to `execute_and_verify()`,
+meaning execution results were never committed to GAIT. A failure would send a Discord webhook
+notification but leave no trace in the git audit trail. After the fix, check the `-approved`
+branch for the session to see `01_execution_result.json` with the specific error message.
+
+**Diagnosis after fix** (with container running):
+```bash
+# Check logs for the actual failure reason during an approval
+docker logs -f convergence-automation-agent | grep -E "xmlrpc|alias|execution|failed|FAILED"
+
+# Check a recent -approved branch for the execution result
+docker exec convergence-automation-agent \
+  git -C /app/audit-repo branch | grep approved | tail -5
+```
+
+---
+
 ### No sessions appearing after startup
 
 **Cause A**: threat-intel service hasn't completed its first enrichment cycle (runs ~45s after
@@ -718,6 +840,9 @@ session IDs) thanks to `mark_ip_processed` — the re-evaluation triggers after 
   sessions with new session IDs. Future improvement: persist to Redis with TTL keys.
 - **SSH fallback is runtime-only**: `pfctl -T add` entries do not survive a reboot or pfSense
   config reload. SSH is intended for emergency use; XML-RPC alias mode is the recommended path.
+  Additionally, `PFSENSE_SSH_KEY_PATH` must reference a path inside the container — only the
+  `automation-audit` volume is mounted by default. Mount the key explicitly in `docker-compose.yml`
+  if the SSH path is needed (see Troubleshooting).
 - **Verification is informational**: Post-action metric comparison is recorded in the audit trail
   but does not trigger automatic rollback. pfBlockerNG blocks may *decrease* block event count
   (pfB drops before pf logs), which looks like "not effective" but is the correct outcome.

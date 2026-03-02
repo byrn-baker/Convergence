@@ -34,6 +34,7 @@ from discord import app_commands
 from app import state
 from app.actions.executor import execute_and_verify
 from app.actions.pfblocker import PfBlockerAction
+from app.audit.git_trail import trail
 from app.config import settings
 import app.metrics as m
 
@@ -205,6 +206,23 @@ async def start_bot() -> None:
             )
         )
 
+        # Re-open GAIT session for the execution leg (mirrors /api/automation/approve)
+        session = None
+        if trail.initialized:
+            try:
+                session = trail.open_session(ip, f"{session_id}-approved")
+                session.record_turn(
+                    "approval",
+                    {
+                        "approved_at": datetime.now(timezone.utc).isoformat(),
+                        "approved_via": "discord",
+                        "approved_by": approver,
+                        "original_session_id": session_id,
+                    },
+                )
+            except Exception as exc:
+                logger.error("Could not open GAIT session for Discord approval: %s", exc)
+
         asyncio.create_task(
             execute_and_verify(
                 session_id,
@@ -213,7 +231,7 @@ async def start_bot() -> None:
                 pending["baseline"],
                 pending["threat_data"],
                 pending["proposed_action"],
-                None,  # GAIT session is re-opened inside execute_and_verify
+                session,
             )
         )
         logger.info(
@@ -320,6 +338,27 @@ async def start_bot() -> None:
                 reason=pa["reason"],
                 duration_hours=int(pa.get("duration_hours", settings.block_ttl_hours)),
             )
+
+            # Re-open GAIT session for each execution leg
+            session = None
+            if trail.initialized:
+                try:
+                    session = trail.open_session(ip, f"{sid}-approved")
+                    session.record_turn(
+                        "approval",
+                        {
+                            "approved_at": datetime.now(timezone.utc).isoformat(),
+                            "approved_via": "discord_bulk",
+                            "approved_by": approver,
+                            "original_session_id": sid,
+                        },
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Could not open GAIT session for bulk Discord approval %s: %s",
+                        sid, exc,
+                    )
+
             asyncio.create_task(
                 execute_and_verify(
                     sid,
@@ -328,7 +367,7 @@ async def start_bot() -> None:
                     pending["baseline"],
                     pending["threat_data"],
                     pending["proposed_action"],
-                    None,
+                    session,
                 )
             )
 
