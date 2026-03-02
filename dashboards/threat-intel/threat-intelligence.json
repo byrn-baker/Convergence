@@ -31,7 +31,7 @@
   "links": [],
   "panels": [
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -40,465 +40,467 @@
       },
       "id": 100,
       "title": "Executive Summary",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
+      "type": "row",
+      "panels": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "threat-intel"
           },
-          "mappings": [
-            {
-              "options": {
-                "none": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "NONE"
-                },
-                "low": {
-                  "color": "yellow",
-                  "index": 1,
-                  "text": "LOW"
-                },
-                "medium": {
-                  "color": "orange",
-                  "index": 2,
-                  "text": "MEDIUM"
-                },
-                "high": {
-                  "color": "red",
-                  "index": 3,
-                  "text": "HIGH"
-                },
-                "critical": {
-                  "color": "dark-red",
-                  "index": 4,
-                  "text": "CRITICAL"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [
+                {
+                  "options": {
+                    "none": {
+                      "color": "green",
+                      "index": 0,
+                      "text": "NONE"
+                    },
+                    "low": {
+                      "color": "yellow",
+                      "index": 1,
+                      "text": "LOW"
+                    },
+                    "medium": {
+                      "color": "orange",
+                      "index": 2,
+                      "text": "MEDIUM"
+                    },
+                    "high": {
+                      "color": "red",
+                      "index": 3,
+                      "text": "HIGH"
+                    },
+                    "critical": {
+                      "color": "dark-red",
+                      "index": 4,
+                      "text": "CRITICAL"
+                    }
+                  },
+                  "type": "value"
                 }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
               }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 0,
-        "y": 1
-      },
-      "id": 1,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^overall_risk_level$/",
-          "values": false
-        }
-      },
-      "title": "Overall Risk Level",
-      "type": "stat",
-      "targets": [
-        {
-          "columns": [
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 1
+          },
+          "id": 1,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "/^overall_risk_level$/",
+              "values": false
+            }
+          },
+          "title": "Overall Risk Level",
+          "type": "stat",
+          "targets": [
             {
-              "selector": "overall_risk_level",
-              "text": "overall_risk_level",
-              "type": "string"
-            }
-          ],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "threat-intel"
-          },
-          "filters": [],
-          "format": "json",
-          "global_query_id": "",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/summary",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
+              "columns": [
+                {
+                  "selector": "overall_risk_level",
+                  "text": "overall_risk_level",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
               },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
+              "filters": [],
+              "format": "json",
+              "global_query_id": "",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/summary",
+              "url_options": {
+                "method": "GET"
               }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 1
-      },
-      "id": 2,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^known_bad_actors_inbound$/",
-          "values": false
-        }
-      },
-      "title": "Known Bad Actors (Inbound)",
-      "type": "stat",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "known_bad_actors_inbound",
-              "text": "known_bad_actors_inbound",
-              "type": "number"
             }
-          ],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "threat-intel"
-          },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/summary",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "dark-red",
-                "value": 3
-              }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 1
-      },
-      "id": 3,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^known_bad_actors_outbound$/",
-          "values": false
-        }
-      },
-      "title": "Known Bad Actors (Outbound)",
-      "type": "stat",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "known_bad_actors_outbound",
-              "text": "known_bad_actors_outbound",
-              "type": "number"
-            }
-          ],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "threat-intel"
-          },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/summary",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "dark-red",
-                "value": 3
-              }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 1
-      },
-      "id": 4,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^critical_ports_targeted$/",
-          "values": false
-        }
-      },
-      "title": "Critical Ports Targeted",
-      "type": "stat",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "critical_ports_targeted",
-              "text": "critical_ports_targeted",
-              "type": "number"
-            }
-          ],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "threat-intel"
-          },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/summary",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 25
-              },
-              {
-                "color": "orange",
-                "value": 50
-              },
-              {
-                "color": "red",
-                "value": 75
-              }
-            ]
-          },
-          "unit": "short"
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 1
-      },
-      "id": 5,
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "max"
-          ],
-          "fields": "",
-          "values": false
+          ]
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "title": "Max Inbound Threat Score",
-      "type": "gauge",
-      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "threat-intel"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 5
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 4,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "/^known_bad_actors_inbound$/",
+              "values": false
+            }
+          },
+          "title": "Known Bad Actors (Inbound)",
+          "type": "stat",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "known_bad_actors_inbound",
+                  "text": "known_bad_actors_inbound",
+                  "type": "number"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/summary",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "threat-intel"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 3
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 8,
+            "y": 1
+          },
+          "id": 3,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "/^known_bad_actors_outbound$/",
+              "values": false
+            }
+          },
+          "title": "Known Bad Actors (Outbound)",
+          "type": "stat",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "known_bad_actors_outbound",
+                  "text": "known_bad_actors_outbound",
+                  "type": "number"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/summary",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "threat-intel"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  },
+                  {
+                    "color": "dark-red",
+                    "value": 3
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 1
+          },
+          "id": 4,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "/^critical_ports_targeted$/",
+              "values": false
+            }
+          },
+          "title": "Critical Ports Targeted",
+          "type": "stat",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "critical_ports_targeted",
+                  "text": "critical_ports_targeted",
+                  "type": "number"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/summary",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
+        },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "max(threat_intel_ip_score{direction=\"in\"})",
-          "legendFormat": "Max Score",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 1
-      },
-      "id": 6,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^generated_at$/",
-          "values": false
-        }
-      },
-      "title": "Last Analysis",
-      "type": "stat",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "generated_at",
-              "text": "generated_at",
-              "type": "string"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 25
+                  },
+                  {
+                    "color": "orange",
+                    "value": 50
+                  },
+                  {
+                    "color": "red",
+                    "value": 75
+                  }
+                ]
+              },
+              "unit": "short"
             }
-          ],
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 16,
+            "y": 1
+          },
+          "id": 5,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "max"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "title": "Max Inbound Threat Score",
+          "type": "gauge",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "max(threat_intel_ip_score{direction=\"in\"})",
+              "legendFormat": "Max Score",
+              "refId": "A"
+            }
+          ]
+        },
+        {
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
             "uid": "threat-intel"
           },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/summary",
-          "url_options": {
-            "method": "GET"
-          }
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 1
+          },
+          "id": 6,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "/^generated_at$/",
+              "values": false
+            }
+          },
+          "title": "Last Analysis",
+          "type": "stat",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "generated_at",
+                  "text": "generated_at",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/summary",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -507,169 +509,171 @@
       },
       "id": 101,
       "title": "AI Threat Narrative",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
-      "id": 10,
-      "title": "Executive Summary",
-      "type": "table",
-      "targets": [
+      "type": "row",
+      "panels": [
         {
-          "columns": [
-            {
-              "selector": "executive_summary",
-              "text": "Executive Summary",
-              "type": "string"
-            }
-          ],
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
             "uid": "threat-intel"
           },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/narrative",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left",
-            "wrap": true,
-            "minWidth": 200
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 0,
+            "y": 6
           },
-          "noValue": "Generating narrative..."
-        }
-      },
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": false
-      }
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 12,
-        "y": 6
-      },
-      "id": 11,
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": true
-      },
-      "title": "Recommended Actions",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [
+          "id": 10,
+          "title": "Executive Summary",
+          "type": "table",
+          "targets": [
             {
-              "selector": "action",
-              "text": "Recommended Action",
-              "type": "string"
+              "columns": [
+                {
+                  "selector": "executive_summary",
+                  "text": "Executive Summary",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/narrative",
+              "url_options": {
+                "method": "GET"
+              }
             }
           ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left",
+                "wrap": true,
+                "minWidth": 200
+              },
+              "noValue": "Generating narrative..."
+            }
+          },
+          "options": {
+            "footer": {
+              "show": false
+            },
+            "showHeader": false
+          }
+        },
+        {
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
             "uid": "threat-intel"
           },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/actions",
-          "url_options": {
-            "method": "GET"
-          }
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
+            }
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 12,
+            "y": 6
+          },
+          "id": 11,
+          "options": {
+            "footer": {
+              "show": false
+            },
+            "showHeader": true
+          },
+          "title": "Recommended Actions",
+          "type": "table",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "action",
+                  "text": "Recommended Action",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/actions",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "threat-intel"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
+            }
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 18,
+            "y": 6
+          },
+          "id": 12,
+          "options": {
+            "footer": {
+              "show": false
+            },
+            "showHeader": true
+          },
+          "title": "Top Threats",
+          "type": "table",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "threat",
+                  "text": "Threat",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/threats",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 18,
-        "y": 6
-      },
-      "id": 12,
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": true
-      },
-      "title": "Top Threats",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "threat",
-              "text": "Threat",
-              "type": "string"
-            }
-          ],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "threat-intel"
-          },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/threats",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -678,170 +682,172 @@
       },
       "id": 102,
       "title": "Inbound Threat Scores",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
+      "type": "row",
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
           },
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "continuous-RdYlGr"
               },
-              {
-                "color": "yellow",
-                "value": 25
-              },
-              {
-                "color": "orange",
-                "value": 50
-              },
-              {
-                "color": "red",
-                "value": 75
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 25
+                  },
+                  {
+                    "color": "orange",
+                    "value": 50
+                  },
+                  {
+                    "color": "red",
+                    "value": 75
+                  }
+                ]
               }
-            ]
-          }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 13
+          },
+          "id": 20,
+          "options": {
+            "displayMode": "lcd",
+            "minVizHeight": 10,
+            "minVizWidth": 0,
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": true
+            },
+            "showUnfilled": true
+          },
+          "title": "Top Blocked IPs by Threat Score",
+          "type": "bargauge",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "topk(15, threat_intel_ip_score{direction=\"in\"})",
+              "legendFormat": "{{ip}}",
+              "refId": "A"
+            }
+          ]
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 13
-      },
-      "id": 20,
-      "options": {
-        "displayMode": "lcd",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": true
-        },
-        "showUnfilled": true
-      },
-      "title": "Top Blocked IPs by Threat Score",
-      "type": "bargauge",
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "topk(15, threat_intel_ip_score{direction=\"in\"})",
-          "legendFormat": "{{ip}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "continuous-RdYlGr"
+              },
+              "max": 100,
+              "min": 0
+            }
           },
-          "max": 100,
-          "min": 0
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 13
-      },
-      "id": 21,
-      "options": {
-        "displayMode": "lcd",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": true
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 13
+          },
+          "id": 21,
+          "options": {
+            "displayMode": "lcd",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": true
+            },
+            "showUnfilled": true
+          },
+          "title": "AbuseIPDB Scores (Inbound)",
+          "type": "bargauge",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "topk(15, threat_intel_abuseipdb_score{direction=\"in\"})",
+              "legendFormat": "{{ip}}",
+              "refId": "A"
+            }
+          ]
         },
-        "showUnfilled": true
-      },
-      "title": "AbuseIPDB Scores (Inbound)",
-      "type": "bargauge",
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "topk(15, threat_intel_abuseipdb_score{direction=\"in\"})",
-          "legendFormat": "{{ip}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 13
-      },
-      "id": 22,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "title": "Threat Score Over Time",
-      "type": "timeseries",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              }
+            }
           },
-          "expr": "topk(5, threat_intel_ip_score{direction=\"in\"})",
-          "legendFormat": "{{ip}}",
-          "refId": "A"
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 13
+          },
+          "id": 22,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "title": "Threat Score Over Time",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "topk(5, threat_intel_ip_score{direction=\"in\"})",
+              "legendFormat": "{{ip}}",
+              "refId": "A"
+            }
+          ]
         }
       ]
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -850,209 +856,211 @@
       },
       "id": 103,
       "title": "Outbound Traffic Analysis",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
-          },
-          "max": 100,
-          "min": 0
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 22
-      },
-      "id": 30,
-      "options": {
-        "displayMode": "lcd",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": true
-        },
-        "showUnfilled": true
-      },
-      "title": "Outbound Destinations by Score",
-      "type": "bargauge",
-      "targets": [
+      "type": "row",
+      "panels": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "topk(10, threat_intel_ip_score{direction=\"out\"})",
-          "legendFormat": "{{ip}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "composite_score"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 22
-      },
-      "id": 31,
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": true
-      },
-      "title": "Suspicious Outbound Destinations",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "ip",
-              "text": "Destination IP",
-              "type": "string"
-            },
-            {
-              "selector": "org",
-              "text": "Organization",
-              "type": "string"
-            },
-            {
-              "selector": "country",
-              "text": "Country",
-              "type": "string"
-            },
-            {
-              "selector": "events",
-              "text": "Events",
-              "type": "number"
-            },
-            {
-              "selector": "score",
-              "text": "Score",
-              "type": "number"
-            },
-            {
-              "selector": "threat_level",
-              "text": "Risk",
-              "type": "string"
-            },
-            {
-              "selector": "abuse_score",
-              "text": "AbuseIPDB",
-              "type": "number"
-            },
-            {
-              "selector": "otx_pulses",
-              "text": "OTX Pulses",
-              "type": "number"
-            },
-            {
-              "selector": "source",
-              "text": "Source",
-              "type": "string"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "continuous-RdYlGr"
+              },
+              "max": 100,
+              "min": 0
             }
-          ],
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 22
+          },
+          "id": 30,
+          "options": {
+            "displayMode": "lcd",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": true
+            },
+            "showUnfilled": true
+          },
+          "title": "Outbound Destinations by Score",
+          "type": "bargauge",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "topk(10, threat_intel_ip_score{direction=\"out\"})",
+              "legendFormat": "{{ip}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
             "uid": "threat-intel"
           },
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/outbound_suspicious",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "composite_score"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  }
+                ]
+              }
+            ]
           },
-          "max": 20,
-          "min": 0
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 22
-      },
-      "id": 32,
-      "options": {
-        "displayMode": "lcd",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": true
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 22
+          },
+          "id": 31,
+          "options": {
+            "footer": {
+              "show": false
+            },
+            "showHeader": true
+          },
+          "title": "Suspicious Outbound Destinations",
+          "type": "table",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "ip",
+                  "text": "Destination IP",
+                  "type": "string"
+                },
+                {
+                  "selector": "org",
+                  "text": "Organization",
+                  "type": "string"
+                },
+                {
+                  "selector": "country",
+                  "text": "Country",
+                  "type": "string"
+                },
+                {
+                  "selector": "events",
+                  "text": "Events",
+                  "type": "number"
+                },
+                {
+                  "selector": "score",
+                  "text": "Score",
+                  "type": "number"
+                },
+                {
+                  "selector": "threat_level",
+                  "text": "Risk",
+                  "type": "string"
+                },
+                {
+                  "selector": "abuse_score",
+                  "text": "AbuseIPDB",
+                  "type": "number"
+                },
+                {
+                  "selector": "otx_pulses",
+                  "text": "OTX Pulses",
+                  "type": "number"
+                },
+                {
+                  "selector": "source",
+                  "text": "Source",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/outbound_suspicious",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
         },
-        "showUnfilled": true
-      },
-      "title": "OTX Pulse Hits (Outbound)",
-      "type": "bargauge",
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "topk(10, threat_intel_otx_pulses{direction=\"out\"} > 0)",
-          "legendFormat": "{{ip}}",
-          "refId": "A"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "continuous-RdYlGr"
+              },
+              "max": 20,
+              "min": 0
+            }
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 22
+          },
+          "id": 32,
+          "options": {
+            "displayMode": "lcd",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": true
+            },
+            "showUnfilled": true
+          },
+          "title": "OTX Pulse Hits (Outbound)",
+          "type": "bargauge",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "topk(10, threat_intel_otx_pulses{direction=\"out\"} > 0)",
+              "legendFormat": "{{ip}}",
+              "refId": "A"
+            }
+          ]
         }
       ]
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1061,173 +1069,175 @@
       },
       "id": 104,
       "title": "Port Attack Analysis",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 31
-      },
-      "id": 40,
-      "options": {
-        "barWidth": 0.97,
-        "fillOpacity": 80,
-        "gradientMode": "none",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "orientation": "horizontal",
-        "tooltip": {
-          "mode": "single"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 100
-      },
-      "title": "Top Targeted Ports",
-      "type": "barchart",
-      "targets": [
+      "type": "row",
+      "panels": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "topk(15, threat_intel_port_event_count)",
-          "legendFormat": "{{port}}/{{service}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 31
-      },
-      "id": 41,
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": true
-      },
-      "title": "Critical Ports Under Attack",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "port",
-              "text": "Port",
-              "type": "string"
-            },
-            {
-              "selector": "service",
-              "text": "Service",
-              "type": "string"
-            },
-            {
-              "selector": "risk_level",
-              "text": "Risk",
-              "type": "string"
-            },
-            {
-              "selector": "count",
-              "text": "Events",
-              "type": "number"
-            },
-            {
-              "selector": "description",
-              "text": "Description",
-              "type": "string"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              }
             }
-          ],
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 31
+          },
+          "id": 40,
+          "options": {
+            "barWidth": 0.97,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "orientation": "horizontal",
+            "tooltip": {
+              "mode": "single"
+            },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 100
+          },
+          "title": "Top Targeted Ports",
+          "type": "barchart",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "topk(15, threat_intel_port_event_count)",
+              "legendFormat": "{{port}}/{{service}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
             "uid": "threat-intel"
           },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/critical_ports",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 31
-      },
-      "id": 42,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "right"
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
+            }
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 31
+          },
+          "id": 41,
+          "options": {
+            "footer": {
+              "show": false
+            },
+            "showHeader": true
+          },
+          "title": "Critical Ports Under Attack",
+          "type": "table",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "port",
+                  "text": "Port",
+                  "type": "string"
+                },
+                {
+                  "selector": "service",
+                  "text": "Service",
+                  "type": "string"
+                },
+                {
+                  "selector": "risk_level",
+                  "text": "Risk",
+                  "type": "string"
+                },
+                {
+                  "selector": "count",
+                  "text": "Events",
+                  "type": "number"
+                },
+                {
+                  "selector": "description",
+                  "text": "Description",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/critical_ports",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
         },
-        "pieType": "pie",
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "title": "Port Risk Distribution",
-      "type": "piechart",
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "sum by (risk_level) (threat_intel_port_event_count)",
-          "legendFormat": "{{risk_level}}",
-          "refId": "A"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              }
+            }
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 31
+          },
+          "id": 42,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            },
+            "pieType": "pie",
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "title": "Port Risk Distribution",
+          "type": "piechart",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "sum by (risk_level) (threat_intel_port_event_count)",
+              "legendFormat": "{{risk_level}}",
+              "refId": "A"
+            }
+          ]
         }
       ]
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1236,258 +1246,260 @@
       },
       "id": 105,
       "title": "Enriched IP Detail Tables",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Score"
+      "type": "row",
+      "panels": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "threat-intel"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
             },
-            "properties": [
+            "overrides": [
               {
-                "id": "custom.width",
-                "value": 70
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 25
-                    },
-                    {
-                      "color": "orange",
-                      "value": 50
-                    },
-                    {
-                      "color": "red",
-                      "value": 75
+                "matcher": {
+                  "id": "byName",
+                  "options": "Score"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 70
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "yellow",
+                          "value": 25
+                        },
+                        {
+                          "color": "orange",
+                          "value": 50
+                        },
+                        {
+                          "color": "red",
+                          "value": 75
+                        }
+                      ]
                     }
-                  ]
-                }
-              },
-              {
-                "id": "custom.displayMode",
-                "value": "color-background"
+                  },
+                  {
+                    "id": "custom.displayMode",
+                    "value": "color-background"
+                  }
+                ]
               }
             ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 0,
-        "y": 40
-      },
-      "id": 50,
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Score"
-          }
-        ]
-      },
-      "title": "Blocked IP Intelligence",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "ip",
-              "text": "Source IP",
-              "type": "string"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 0,
+            "y": 40
+          },
+          "id": 50,
+          "options": {
+            "footer": {
+              "show": false
             },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Score"
+              }
+            ]
+          },
+          "title": "Blocked IP Intelligence",
+          "type": "table",
+          "targets": [
             {
-              "selector": "org",
-              "text": "Organization",
-              "type": "string"
-            },
-            {
-              "selector": "country",
-              "text": "Country",
-              "type": "string"
-            },
-            {
-              "selector": "events",
-              "text": "Events",
-              "type": "number"
-            },
-            {
-              "selector": "score",
-              "text": "Score",
-              "type": "number"
-            },
-            {
-              "selector": "threat_level",
-              "text": "Risk",
-              "type": "string"
-            },
-            {
-              "selector": "abuse_score",
-              "text": "AbuseIPDB",
-              "type": "number"
-            },
-            {
-              "selector": "otx_pulses",
-              "text": "OTX Pulses",
-              "type": "number"
-            },
-            {
-              "selector": "greynoise",
-              "text": "GreyNoise",
-              "type": "string"
-            },
-            {
-              "selector": "is_known_bad_actor",
-              "text": "Bad Actor",
-              "type": "boolean"
+              "columns": [
+                {
+                  "selector": "ip",
+                  "text": "Source IP",
+                  "type": "string"
+                },
+                {
+                  "selector": "org",
+                  "text": "Organization",
+                  "type": "string"
+                },
+                {
+                  "selector": "country",
+                  "text": "Country",
+                  "type": "string"
+                },
+                {
+                  "selector": "events",
+                  "text": "Events",
+                  "type": "number"
+                },
+                {
+                  "selector": "score",
+                  "text": "Score",
+                  "type": "number"
+                },
+                {
+                  "selector": "threat_level",
+                  "text": "Risk",
+                  "type": "string"
+                },
+                {
+                  "selector": "abuse_score",
+                  "text": "AbuseIPDB",
+                  "type": "number"
+                },
+                {
+                  "selector": "otx_pulses",
+                  "text": "OTX Pulses",
+                  "type": "number"
+                },
+                {
+                  "selector": "greynoise",
+                  "text": "GreyNoise",
+                  "type": "string"
+                },
+                {
+                  "selector": "is_known_bad_actor",
+                  "text": "Bad Actor",
+                  "type": "boolean"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/blocked_ips",
+              "url_options": {
+                "method": "GET"
+              }
             }
-          ],
+          ]
+        },
+        {
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
             "uid": "threat-intel"
           },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/blocked_ips",
-          "url_options": {
-            "method": "GET"
-          }
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "threat-intel"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 40
-      },
-      "id": 51,
-      "options": {
-        "footer": {
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Score"
-          }
-        ]
-      },
-      "title": "Outbound IP Intelligence",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [
-            {
-              "selector": "ip",
-              "text": "Destination IP",
-              "type": "string"
-            },
-            {
-              "selector": "org",
-              "text": "Organization",
-              "type": "string"
-            },
-            {
-              "selector": "country",
-              "text": "Country",
-              "type": "string"
-            },
-            {
-              "selector": "events",
-              "text": "Events",
-              "type": "number"
-            },
-            {
-              "selector": "score",
-              "text": "Score",
-              "type": "number"
-            },
-            {
-              "selector": "threat_level",
-              "text": "Risk",
-              "type": "string"
-            },
-            {
-              "selector": "abuse_score",
-              "text": "AbuseIPDB",
-              "type": "number"
-            },
-            {
-              "selector": "otx_pulses",
-              "text": "OTX Pulses",
-              "type": "number"
-            },
-            {
-              "selector": "is_known_bad_actor",
-              "text": "Bad Actor",
-              "type": "boolean"
-            },
-            {
-              "selector": "internal_sources",
-              "text": "Internal Sources",
-              "type": "string"
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
             }
-          ],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "threat-intel"
           },
-          "filters": [],
-          "format": "json",
-          "refId": "A",
-          "source": "url",
-          "type": "json",
-          "url": "http://threat-intel:8000/api/infinity/outbound_all",
-          "url_options": {
-            "method": "GET"
-          }
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 12,
+            "y": 40
+          },
+          "id": 51,
+          "options": {
+            "footer": {
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Score"
+              }
+            ]
+          },
+          "title": "Outbound IP Intelligence",
+          "type": "table",
+          "targets": [
+            {
+              "columns": [
+                {
+                  "selector": "ip",
+                  "text": "Destination IP",
+                  "type": "string"
+                },
+                {
+                  "selector": "org",
+                  "text": "Organization",
+                  "type": "string"
+                },
+                {
+                  "selector": "country",
+                  "text": "Country",
+                  "type": "string"
+                },
+                {
+                  "selector": "events",
+                  "text": "Events",
+                  "type": "number"
+                },
+                {
+                  "selector": "score",
+                  "text": "Score",
+                  "type": "number"
+                },
+                {
+                  "selector": "threat_level",
+                  "text": "Risk",
+                  "type": "string"
+                },
+                {
+                  "selector": "abuse_score",
+                  "text": "AbuseIPDB",
+                  "type": "number"
+                },
+                {
+                  "selector": "otx_pulses",
+                  "text": "OTX Pulses",
+                  "type": "number"
+                },
+                {
+                  "selector": "is_known_bad_actor",
+                  "text": "Bad Actor",
+                  "type": "boolean"
+                },
+                {
+                  "selector": "internal_sources",
+                  "text": "Internal Sources",
+                  "type": "string"
+                }
+              ],
+              "datasource": {
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "threat-intel"
+              },
+              "filters": [],
+              "format": "json",
+              "refId": "A",
+              "source": "url",
+              "type": "json",
+              "url": "http://threat-intel:8000/api/infinity/outbound_all",
+              "url_options": {
+                "method": "GET"
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1496,154 +1508,156 @@
       },
       "id": 106,
       "title": "Service Health",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "dateTimeAsIso"
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 51
-      },
-      "id": 60,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "title": "Last Enrichment",
-      "type": "stat",
-      "targets": [
+      "type": "row",
+      "panels": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "threat_intel_enrichment_last_success_timestamp * 1000",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "dateTimeAsIso"
+            }
           },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 51
-      },
-      "id": 61,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "title": "IPs Processed",
-      "type": "stat",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P4169E866C3094E38"
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 51
           },
-          "expr": "threat_intel_enrichment_ips_processed_total",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P4169E866C3094E38"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          }
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 51
-      },
-      "id": 62,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
+          "id": 60,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "title": "Last Enrichment",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "threat_intel_enrichment_last_success_timestamp * 1000",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
         },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "title": "Cache Hits Over Time",
-      "type": "timeseries",
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P4169E866C3094E38"
           },
-          "expr": "rate(threat_intel_cache_hits_total[5m])",
-          "legendFormat": "Cache Hit Rate",
-          "refId": "A"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 51
+          },
+          "id": 61,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "title": "IPs Processed",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "threat_intel_enrichment_ips_processed_total",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 12,
+            "y": 51
+          },
+          "id": 62,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "title": "Cache Hits Over Time",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "rate(threat_intel_cache_hits_total[5m])",
+              "legendFormat": "Cache Hit Rate",
+              "refId": "A"
+            }
+          ]
         }
       ]
     }

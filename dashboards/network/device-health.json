@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -19,377 +22,681 @@
   "links": [],
   "panels": [
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 20,
       "title": "Device Uptime",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 600 },
-              { "color": "green", "value": 86400 }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
-      "id": 1,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value_and_name"
-      },
-      "targets": [
+      "type": "row",
+      "panels": [
         {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "system_uptime_seconds{device_name=\"HomeSwitch01\"}",
-          "instant": true,
-          "legendFormat": "HomeSwitch01",
-          "refId": "A"
-        }
-      ],
-      "title": "HomeSwitch01 Uptime",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 600 },
-              { "color": "green", "value": 86400 }
-            ]
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
           },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
-      "id": 2,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "system_uptime_seconds{device_name=\"HomeSwitch02\"}",
-          "instant": true,
-          "legendFormat": "HomeSwitch02",
-          "refId": "A"
-        }
-      ],
-      "title": "HomeSwitch02 Uptime",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 600 },
-              { "color": "green", "value": 86400 }
-            ]
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "green",
+                    "value": 86400
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
           },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
-      "id": 3,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "system_uptime_seconds{device_name=\"pfSense-FW01\"}",
-          "instant": true,
-          "legendFormat": "pfSense-FW01",
-          "refId": "A"
-        }
-      ],
-      "title": "pfSense-FW01 Uptime",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "uptime",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 5,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 0,
+            "y": 1
           },
-          "mappings": [],
-          "min": 0,
-          "unit": "s"
+          "id": 1,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "system_uptime_seconds{device_name=\"HomeSwitch01\"}",
+              "instant": true,
+              "legendFormat": "HomeSwitch01",
+              "refId": "A"
+            }
+          ],
+          "title": "HomeSwitch01 Uptime",
+          "type": "stat"
         },
-        "overrides": []
-      },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
-      "id": 4,
-      "options": {
-        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "system_uptime_seconds",
-          "legendFormat": "{{device_name}}",
-          "refId": "A"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "green",
+                    "value": 86400
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 8,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "system_uptime_seconds{device_name=\"HomeSwitch02\"}",
+              "instant": true,
+              "legendFormat": "HomeSwitch02",
+              "refId": "A"
+            }
+          ],
+          "title": "HomeSwitch02 Uptime",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 600
+                  },
+                  {
+                    "color": "green",
+                    "value": 86400
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 8,
+            "x": 16,
+            "y": 1
+          },
+          "id": 3,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "system_uptime_seconds{device_name=\"pfSense-FW01\"}",
+              "instant": true,
+              "legendFormat": "pfSense-FW01",
+              "refId": "A"
+            }
+          ],
+          "title": "pfSense-FW01 Uptime",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "uptime",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 6
+          },
+          "id": 4,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "system_uptime_seconds",
+              "legendFormat": "{{device_name}}",
+              "refId": "A"
+            }
+          ],
+          "description": "A sudden drop to near-zero indicates a device rebooted. Flat line going up = stable.",
+          "title": "Device Uptime History \u2014 Drops Indicate Reboots",
+          "type": "timeseries"
         }
-      ],
-      "description": "A sudden drop to near-zero indicates a device rebooted. Flat line going up = stable.",
-      "title": "Device Uptime History — Drops Indicate Reboots",
-      "type": "timeseries"
+      ]
     },
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
       "id": 21,
       "title": "Interface Health",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 10 }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "device_name" },
-            "properties": [
-              { "id": "displayName", "value": "Device" },
-              { "id": "custom.width", "value": 160 }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "interface_name" },
-            "properties": [
-              { "id": "displayName", "value": "Interface" },
-              { "id": "custom.width", "value": 220 }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Value" },
-            "properties": [
-              { "id": "displayName", "value": "Errors/sec" },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
-              { "id": "decimals", "value": 4 }
-            ]
-          }
-        ]
-      },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 17 },
-      "id": 5,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Errors/sec" }]
-      },
-      "targets": [
+      "type": "row",
+      "panels": [
         {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "sort_desc(sum by (device_name, interface_name) (rate(interface_in_errors_total[5m])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Interface Error Rates — All Interfaces (errors/sec, 5m avg)",
-      "transformations": [
-        {
-          "id": "organize",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 10
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "device_name"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Device"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 160
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "interface_name"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Interface"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 220
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Errors/sec"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background"
+                    }
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 4
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 17
+          },
+          "id": 5,
           "options": {
-            "excludeByName": { "Time": true },
-            "indexByName": { "device_name": 0, "interface_name": 1, "Value": 2 },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "errors/sec",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "line", "steps": [{ "color": "transparent", "value": null }, { "color": "red", "value": 1 }] }
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Errors/sec"
+              }
+            ]
           },
-          "mappings": [],
-          "min": 0,
-          "unit": "short"
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "sort_desc(sum by (device_name, interface_name) (rate(interface_in_errors_total[5m])))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Interface Error Rates \u2014 All Interfaces (errors/sec, 5m avg)",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                },
+                "indexByName": {
+                  "device_name": 0,
+                  "interface_name": 1,
+                  "Value": 2
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
         },
-        "overrides": []
-      },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 27 },
-      "id": 6,
-      "options": {
-        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
-      },
-      "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "sum by (device_name, interface_name) (rate(interface_in_errors_total[5m])) > 0",
-          "legendFormat": "{{device_name}} — {{interface_name}}",
-          "refId": "A"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "errors/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 27
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "calcs": [
+                "max",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "sum by (device_name, interface_name) (rate(interface_in_errors_total[5m])) > 0",
+              "legendFormat": "{{device_name}} \u2014 {{interface_name}}",
+              "refId": "A"
+            }
+          ],
+          "description": "Only interfaces with active errors are shown (> 0 filter). A clean network shows no lines here.",
+          "title": "Interface Error Rate Over Time (only interfaces with errors)",
+          "type": "timeseries"
         }
-      ],
-      "description": "Only interfaces with active errors are shown (> 0 filter). A clean network shows no lines here.",
-      "title": "Interface Error Rate Over Time (only interfaces with errors)",
-      "type": "timeseries"
+      ]
     },
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
       "id": 22,
       "title": "Bandwidth",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "bits/sec",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "opacity",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+      "type": "row",
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P4169E866C3094E38"
           },
-          "mappings": [],
-          "min": 0,
-          "unit": "bps"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 38 },
-      "id": 7,
-      "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "sum by (device_name) (rate(interface_in_octets_bytes_total[5m])) * 8",
-          "legendFormat": "{{device_name}} — IN",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "P4169E866C3094E38" },
-          "expr": "sum by (device_name) (rate(interface_out_octets_bytes_total[5m])) * 8",
-          "legendFormat": "{{device_name}} — OUT",
-          "refId": "B"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "bits/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "min": 0,
+              "unit": "bps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 38
+          },
+          "id": 7,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "sum by (device_name) (rate(interface_in_octets_bytes_total[5m])) * 8",
+              "legendFormat": "{{device_name}} \u2014 IN",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P4169E866C3094E38"
+              },
+              "expr": "sum by (device_name) (rate(interface_out_octets_bytes_total[5m])) * 8",
+              "legendFormat": "{{device_name}} \u2014 OUT",
+              "refId": "B"
+            }
+          ],
+          "title": "Total Bandwidth per Device (IN + OUT)",
+          "type": "timeseries"
         }
-      ],
-      "title": "Total Bandwidth per Device (IN + OUT)",
-      "type": "timeseries"
+      ]
     }
   ],
   "refresh": "1m",
   "schemaVersion": 38,
-  "tags": ["network", "snmp", "uptime", "health"],
-  "time": { "from": "now-24h", "to": "now" },
+  "tags": [
+    "network",
+    "snmp",
+    "uptime",
+    "health"
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
   "title": "Network Device Health",
