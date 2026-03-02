@@ -22,7 +22,7 @@ groups:
   # ===========================================================================
   - orgId: 1
     name: Firewall Security
-    folder: Security Alerts
+    folder: Security
     interval: 1m
     rules:
       # -----------------------------------------------------------------------
@@ -156,7 +156,7 @@ groups:
   # ===========================================================================
   - orgId: 1
     name: Network Health
-    folder: Network Alerts
+    folder: Network
     interval: 2m
     rules:
       # -----------------------------------------------------------------------
