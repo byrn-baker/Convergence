@@ -6,7 +6,7 @@
 [![Docker](https://img.shields.io/badge/deployment-docker-2496ED.svg)](https://www.docker.com/)
 [![Status](https://img.shields.io/badge/status-operational-success.svg)](docs/PROJECT_STATUS.md)
 
-Convergence is a network observability platform built on OpenTelemetry Collector, VictoriaMetrics, Grafana, Loki, and Alertmanager. It collects, stores, visualizes, and alerts on telemetry from network devices, enriches pfSense firewall events with GeoIP and four threat intelligence APIs, and uses Claude Haiku to both generate AI security narratives and propose automated pfSense blocking actions. A Discord bot provides in-channel slash-command approval for all automation decisions. The platform includes automatic device discovery from Nautobot.
+Convergence is a network observability platform built on OpenTelemetry Collector, VictoriaMetrics, Grafana, Loki, and Alertmanager. It collects, stores, visualizes, and alerts on telemetry from network devices, enriches pfSense firewall events with GeoIP and four threat intelligence APIs, and uses an LLM (Claude Haiku or a local Ollama model) to generate AI security narratives and propose automated pfSense blocking actions. A Discord bot provides in-channel slash-command approval for all automation decisions. The platform includes automatic device discovery from Nautobot.
 
 ---
 
@@ -20,8 +20,9 @@ Convergence is a network observability platform built on OpenTelemetry Collector
 - **AI Threat Intelligence**: Top blocked/outbound IPs enriched via AbuseIPDB, GreyNoise, OTX, and IPInfo
 - **Composite Threat Scoring**: 0–100 score per IP with automatic threat level classification
 - **Outbound C2 Detection**: Flags suspicious outbound destinations against threat intelligence feeds
-- **AI Threat Narratives**: Claude Haiku generates pfSense-specific executive summaries and actionable remediation steps using real interface names and pfBlockerNG paths
-- **Event-Driven Automation**: Polls threat-intel every 10 minutes; Claude proposes pfSense blocking actions for high-risk IPs; executed live after human or auto approval
+- **AI Threat Narratives**: LLM generates pfSense-specific executive summaries and actionable remediation steps using real interface names and pfBlockerNG paths
+- **Dual LLM Backend**: Claude Haiku (Anthropic API) or any Ollama-hosted model — switch at runtime with a single env var (`LLM_PROVIDER=anthropic|ollama`)
+- **Event-Driven Automation**: Polls threat-intel every 10 minutes; LLM proposes pfSense blocking actions for high-risk IPs; executed live after human or auto approval
 - **Discord Bot Approval**: Five slash commands (`/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending`) for in-channel human review of automation decisions
 - **Repeat Offender Tracking**: Per-IP lifetime block counter in Redis; IPs blocked 5+ times or hammering 50+ events/hour get escalated durations and a permanent-block recommendation
 - **GAIT Audit Trail**: Every AI decision committed to an immutable git branch — auto-approved sessions record 8 sequential JSON turns in one branch; human-approved sessions split across the original branch (scheduler turns 00–04) and a `{session_id}-approved` branch (approval + execution turns 00–03)
@@ -104,116 +105,20 @@ curl http://localhost:9093/-/healthy
 
 ## 📊 Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Nautobot (External)                       │
-│              Source of Truth for Inventory                   │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ GraphQL API
-                           v
-                  ┌─────────────────┐
-                  │ Device Discovery│
-                  │     Script      │
-                  └────────┬─────────┘
-                           │ Auto-generates config
-                           v
-┌─────────────────────────────────────────────────────────────┐
-│                     Network Devices                          │
-│         Cisco, Juniper, Arista (SNMP enabled)               │
-│         pfSense (Syslog + SNMP enabled)                      │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ SNMP polling (60s)
-                           │ Syslog (port 514 UDP/TCP)
-                           v
-┌─────────────────────────────────────────────────────────────┐
-│              OpenTelemetry Collector                          │
-│    • SNMP receivers (per device)                             │
-│    • Syslog receiver (RFC 3164)                              │
-│    • Filterlog regex parser (pfSense firewall events)        │
-│    • GeoIP processor (src/dst lat, lon, country)             │
-│    • Attributes processors (device metadata)                 │
-│    • Count/firewall connector (logs → metrics)               │
-│    • Prometheus Remote Write exporter → VictoriaMetrics      │
-│    • File exporter → /data/syslog/syslog.jsonl               │
-└───────────────┬──────────────────────┬───────────────────────┘
-                │                      │
-                v                      v
-┌──────────────────────┐   ┌──────────────────────────────────┐
-│    VictoriaMetrics    │   │           Promtail               │
-│  firewall_events_total│   │  Regex extracts Loki labels from │
-│  system_uptime_seconds│   │  OTLP JSON: action, log_type,    │
-│  interface_in/out_*   │   │  src_country, interface          │
-│  (90d retention)      │   └──────────────┬───────────────────┘
-└──────────┬────────────┘                  │
-           │                              v
-           │                  ┌──────────────────────┐
-           │                  │         Loki          │
-           │                  │  Log storage + Ruler  │
-           │                  │  Recording rules:     │
-           │                  │  blocks_by_country    │
-           │                  │  Alert rules → AM     │
-           │                  └──────────┬────────────┘
-           │                             │
-           │                             v
-           │                  ┌──────────────────────┐
-           │                  │     Alertmanager      │
-           │                  │  Routes: critical/    │
-           │                  │  security/network     │
-           │                  │  → Discord webhook    │
-           │                  └──────────────────────┘
-           │
-           ├──────────────────────────────────────────────────────────┐
-           │                                                           │
-           v                                                           v
-┌────────────────────────────────┐           ┌────────────────────────────────────────┐
-│    Grafana (port 3000)          │           │  threat-intel service (port 8001)       │
-│                                 │           │                                          │
-│  Network/                       │           │  Hourly enrichment job:                 │
-│  ├─ Interface Utilization        │           │  ├─ AbuseIPDB / GreyNoise / OTX /       │
-│  ├─ Interface Errors             │◄──────────│    IPInfo → composite score 0-100        │
-│  ├─ Network Overview             │  Infinity │  ├─ Loki LogQL filterlog port analysis   │
-│  ├─ Platform Health              │  JSON +   │  └─ Claude Haiku → threat narrative      │
-│  └─ Network Device Health        │  Prom     │                                          │
-│                                  │  metrics  │  GET /api/infinity/* → Grafana panels    │
-│  Security/                       │           │  GET /metrics → VictoriaMetrics scrape   │
-│  ├─ pfSense Firewall Security    │           └────────────────────────────────────────┘
-│  └─ Threat Analysis              │
-│                                  │
-│  Threat Intelligence/            │
-│  └─ AI Threat Dashboard          │
-│      ├─ Risk level + bad actors  │
-│      ├─ AI narrative + actions   │
-│      ├─ IP reputation tables     │
-│      └─ Port attack analysis     │
-│                                  │
-│  Automation/                     │
-│  └─ Automation Agent Dashboard   │
-│      ├─ Sessions + status table  │
-│      ├─ Pending approvals        │
-│      ├─ Action metrics           │
-│      └─ GAIT audit branch list   │
-│                                  │
-│  Unified Alerting → Discord      │
-│  (5 provisioned rules)           │
-└────────────────────────────────┘
+![Convergence Architecture](docs/images/convergence-architecture.png)
 
-                      ▲ Infinity JSON
-                      │
-           ┌──────────────────────────────────────────┐
-           │  automation-agent (port 8002)             │
-           │                                           │
-           │  Poll threat-intel every 10 min           │
-           │  ├─ score ≥ 80: Claude action proposal    │
-           │  ├─ Block history: repeat-offender check  │
-           │  ├─ score < 95: Discord bot approval      │
-           │  │   /approve /reject /approve-all etc.   │
-           │  ├─ score ≥ 95: auto-execute              │
-           │  ├─ pfSense: XML-RPC alias write          │
-           │  └─ GAIT git branch audit per session     │
-           │                                           │
-           │  Redis DB1: rate limit + block counts     │
-           └──────────────────────────────────────────┘
-```
+> **Editable source:** [docs/images/convergence-architecture.excalidraw](docs/images/convergence-architecture.excalidraw) — drag-and-drop into [excalidraw.com](https://excalidraw.com) to edit.
+
+**Data flow summary:**
+
+| Zone | Components | Role |
+|------|-----------|------|
+| Network Infrastructure | Internet/WAN · pfSense · Cisco Switches · Nautobot | Traffic sources and network inventory |
+| Collection & Storage | OTEL Collector · VictoriaMetrics · Loki · Redis | Ingest metrics (SNMP) and logs (syslog), cache enrichment |
+| AI Services | threat-intel `:8001` · automation-agent `:8002` | Enrich IPs, generate narratives, propose block actions |
+| Integrations | AbuseIPDB · GreyNoise · OTX · IPInfo · Claude / Ollama | External threat intel APIs and LLM backends |
+| Outputs | Discord Alert · GAIT Audit Trail · pfSense Block Action | Notifications, immutable audit log, firewall enforcement |
+| Grafana `:3000` | 9 dashboards across Network, Security, Threat Intelligence, Automation folders | Unified observability UI |
 
 ---
 
@@ -301,9 +206,13 @@ convergence/
 │   ├── PHASE3_ALERTING.md           # Phase 3: alerting, geo-viz, dashboard guide
 │   ├── PHASE4_THREAT_INTELLIGENCE.md # Phase 4: threat intel service deployment guide
 │   ├── PHASE5_AUTOMATION_AGENT.md   # Phase 5: automation agent deployment + operations guide
+│   ├── PHASE6_OLLAMA_PROVIDER.md    # Phase 6: Ollama LLM backend integration guide
 │   ├── THREAT_INTEL_SERVICE.md      # Phase 4: service internals, API reference, gotchas
 │   ├── FIREWALL-SECURITY-DASHBOARD.md
 │   ├── NAUTOBOT_ENRICHMENT.md
+│   ├── images/
+│   │   ├── convergence-architecture.excalidraw  # Editable architecture diagram
+│   │   └── convergence-architecture.png         # Rendered PNG
 │   └── quickstart/
 │
 ├── data/
@@ -426,6 +335,7 @@ See [docs/PHASE3_ALERTING.md](docs/PHASE3_ALERTING.md) for full alerting documen
 For detailed information, see the [docs](docs/) folder:
 
 - **[Project Status](docs/PROJECT_STATUS.md)**: Current capabilities, recent improvements, lessons learned, and roadmap
+- **[Phase 6: Ollama LLM Provider](docs/PHASE6_OLLAMA_PROVIDER.md)**: Ollama integration guide — why the native `/api/chat` endpoint is required for thinking models, `LLM_PROVIDER` runtime switching, model recommendations, and troubleshooting
 - **[Phase 5: Automation Agent](docs/PHASE5_AUTOMATION_AGENT.md)**: Complete deployment and operations guide — pfSense XML-RPC setup, Discord bot configuration, safety controls, repeat offender tracking, GAIT audit trail, and troubleshooting
 - **[Phase 4: AI Threat Intelligence](docs/PHASE4_THREAT_INTELLIGENCE.md)**: Deployment guide, composite scoring, Grafana dashboard, Loki port analysis, troubleshooting, and bug reference for the threat-intel service
 - **[Threat Intel Service Reference](docs/THREAT_INTEL_SERVICE.md)**: Service internals, enrichment pipeline data flow, all 15 API endpoints with examples, Redis key schema, Infinity datasource gotchas, and development notes
@@ -471,11 +381,16 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 
 # Threat Intelligence API keys (Phase 4)
 # See docs/PHASE4_THREAT_INTELLIGENCE.md for registration links and free tier limits
-ANTHROPIC_API_KEY=sk-ant-...        # Required for AI narratives (Claude Haiku)
+ANTHROPIC_API_KEY=sk-ant-...        # Required when LLM_PROVIDER=anthropic
 ABUSEIPDB_API_KEY=                  # Recommended: 1,000 checks/day free
 OTX_API_KEY=                        # Recommended: free registration
 IPINFO_TOKEN=                       # Recommended: 50k lookups/month free
 GREYNOISE_API_KEY=                  # Optional: community API works without key
+
+# LLM provider (Phase 6) — default: anthropic
+# LLM_PROVIDER=ollama               # Switch to a local Ollama instance
+# OLLAMA_BASE_URL=http://host.docker.internal:11434
+# OLLAMA_MODEL=qwen3.5:9b           # Any model available in `ollama list`
 ```
 
 See [.env.example](.env.example) for all available options.
@@ -569,10 +484,11 @@ curl -s -u admin:admin http://localhost:3000/api/v1/provisioning/contact-points 
 - **Discord bot approval**: `/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending` slash commands with human-bypassed rate limits
 - **Repeat offender tracking**: per-IP lifetime block counter; escalated TTL (168h) + permanent block recommendation at 5+ blocks or 50+ events/hour
 - **GAIT audit trail**: every AI decision committed to an immutable git branch; Discord bot approvals now create a proper `{session_id}-approved` branch recording the full execution trail (approval → execution_result → verification → outcome)
+- **Ollama LLM support**: both `threat-intel` and `automation-agent` support local Ollama models via native `/api/chat` endpoint; `LLM_PROVIDER=ollama` runtime switch — no rebuild required
 
 ### 🎯 Roadmap
 
-Phase 1–5 complete. Potential future enhancements:
+Phase 1–6 complete. Potential future enhancements:
 
 - Dynamic baselines: MetricsQL `outlier_iqr_over_time()` to replace fixed alert thresholds
 - Multi-site: extend Alertmanager routing for multiple pfSense instances
