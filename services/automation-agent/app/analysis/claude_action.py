@@ -1,16 +1,20 @@
-"""Claude-powered action proposal generator.
+"""LLM-powered action proposal generator.
 
 Separate from the threat-intel narrative generator — this prompt is tighter,
 more structured, and explicitly asks for ONE machine-parseable JSON action.
 
-Claude is instructed to:
+Supports two providers selected via the LLM_PROVIDER environment variable:
+  - "anthropic" (default): uses the Anthropic API (Claude Haiku)
+  - "ollama": uses a local/external Ollama instance via its OpenAI-compatible API
+
+The LLM is instructed to:
   - Output exactly one proposed action (or "no_action" if criteria not met)
   - Include a human-readable reason grounded in the threat data
   - Respect safety rules (FP filter, RFC 1918 guard, CDN guard)
   - Prefer conservative /32 single-host blocks over wide CIDRs
 
 The returned dict is committed to the GAIT audit trail verbatim so there is
-a permanent record of what Claude saw and what it decided.
+a permanent record of what the LLM saw and what it decided.
 """
 from __future__ import annotations
 
@@ -22,14 +26,58 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Use the same Haiku model as threat-intel to keep costs low.
+# Anthropic model (used when llm_provider == "anthropic")
 # Switch to claude-sonnet-4-6 if richer reasoning is needed.
-_MODEL = "claude-haiku-4-5-20251001"
+_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 _MAX_TOKENS = 800
 
 # The firewall alias (or pfBlockerNG list) managed by this agent.
 # Reads from settings so it stays in sync with PFSENSE_FIREWALL_ALIAS / PFBLOCKER_CUSTOM_LIST.
 _PFBLOCKER_LIST = settings.pfsense_firewall_alias
+
+
+async def _call_llm(prompt: str, max_tokens: int) -> tuple[str, int, int]:
+    """Dispatch a single-turn prompt to the configured LLM provider.
+
+    Returns (response_text, prompt_tokens, completion_tokens).
+    Raises on connection/API errors — callers handle exceptions.
+    """
+    provider = settings.llm_provider
+
+    if provider == "anthropic":
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        message = await client.messages.create(
+            model=_ANTHROPIC_MODEL,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text
+        return text, message.usage.input_tokens, message.usage.output_tokens
+
+    if provider == "ollama":
+        import httpx
+        # Use the native Ollama API (/api/chat) rather than the OpenAI-compat shim
+        # because only the native endpoint honours think=false, which suppresses the
+        # internal reasoning chain on Qwen3-family models so output goes to content.
+        url = f"{settings.ollama_base_url}/api/chat"
+        payload = {
+            "model": settings.ollama_model,
+            "think": False,
+            "stream": False,
+            "options": {"num_predict": max_tokens},
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        async with httpx.AsyncClient(timeout=120.0) as http:
+            resp = await http.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+        text = data["message"]["content"]
+        prompt_tokens = data.get("prompt_eval_count", 0)
+        completion_tokens = data.get("eval_count", 0)
+        return text, prompt_tokens, completion_tokens
+
+    raise RuntimeError(f"Unknown llm_provider: {provider!r}. Set LLM_PROVIDER=anthropic or ollama.")
 
 
 def build_action_prompt(
@@ -143,29 +191,35 @@ async def propose_action(
     Returns a dict that is always safe to inspect for "type" == "pfblocker_add".
     Falls back to {"type": "no_action"} on any error.
     """
-    if not settings.anthropic_api_key:
-        logger.info("No Anthropic API key configured; returning no_action")
+    provider = settings.llm_provider
+
+    # Gate: skip if required credentials/config are missing
+    if provider == "anthropic" and not settings.anthropic_api_key:
+        logger.info("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY not set; returning no_action")
         return {
             "type": "no_action",
             "reason": "ANTHROPIC_API_KEY not set",
             "confidence": "none",
             "notes": "Configure ANTHROPIC_API_KEY to enable AI action proposals.",
         }
+    if provider == "ollama" and not settings.ollama_base_url:
+        logger.info("LLM_PROVIDER=ollama but OLLAMA_BASE_URL not set; returning no_action")
+        return {
+            "type": "no_action",
+            "reason": "OLLAMA_BASE_URL not set",
+            "confidence": "none",
+            "notes": "Configure OLLAMA_BASE_URL to enable AI action proposals.",
+        }
 
+    model_name = _ANTHROPIC_MODEL if provider == "anthropic" else settings.ollama_model
     prompt = build_action_prompt(ip, threat_data, baseline, narrative)
 
     try:
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        message = await client.messages.create(
-            model=_MODEL,
-            max_tokens=_MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw_text = message.content[0].text.strip()
+        raw_text, prompt_tokens, completion_tokens = await _call_llm(prompt, _MAX_TOKENS)
+        raw_text = raw_text.strip()
         logger.debug(
-            "Claude action proposal (%d chars): %s…",
+            "LLM action proposal (%s, %d chars): %s…",
+            model_name,
             len(raw_text),
             raw_text[:120],
         )
@@ -184,13 +238,14 @@ async def propose_action(
             raw_text = "\n".join(lines[1:end]).strip()
 
         parsed = json.loads(raw_text)
-        parsed["model"] = _MODEL
-        parsed["prompt_tokens"] = message.usage.input_tokens
-        parsed["completion_tokens"] = message.usage.output_tokens
+        parsed["model"] = model_name
+        parsed["provider"] = provider
+        parsed["prompt_tokens"] = prompt_tokens
+        parsed["completion_tokens"] = completion_tokens
         return parsed
 
     except json.JSONDecodeError as exc:
-        logger.warning("Claude action response non-JSON: %s", exc)
+        logger.warning("LLM action response non-JSON (provider=%s): %s", provider, exc)
         return {
             "type": "no_action",
             "reason": "json_parse_error",
@@ -198,7 +253,7 @@ async def propose_action(
             "raw_response": raw_text if "raw_text" in dir() else "",
         }
     except Exception as exc:
-        logger.warning("Claude action proposal failed: %s", exc)
+        logger.warning("LLM action proposal failed (provider=%s): %s", provider, exc)
         return {
             "type": "no_action",
             "reason": str(exc),

@@ -1,7 +1,7 @@
 # Convergence Platform - Project Status
 
-**Last Updated:** 2026-02-25
-**Current Phase:** Phase 5 — Event-Driven Automation Agent
+**Last Updated:** 2026-03-04
+**Current Phase:** Phase 6 — Ollama LLM Provider Support
 
 ---
 
@@ -13,7 +13,45 @@
 | 2 | pfSense Firewall Integration + GeoIP Enrichment | ✅ Complete | ~2026-02-15 |
 | 3 | Alerting (Loki Rules + Grafana + Alertmanager) | ✅ Complete | ~2026-02-18 |
 | 4 | AI Threat Intelligence Service | ✅ Complete | 2026-02-21 |
-| **5** | **Event-Driven Automation Agent** | ✅ **Live** — XML-RPC alias, Discord bot, repeat-offender tracking | **2026-02-25** |
+| 5 | Event-Driven Automation Agent | ✅ Complete — XML-RPC alias, Discord bot, repeat-offender tracking | 2026-02-25 |
+| **6** | **Ollama LLM Provider Support** | ✅ **Live** — `qwen3.5:9b` via external Ollama instance | **2026-03-04** |
+
+---
+
+## Phase 6: Ollama LLM Provider Support — 2026-03-04
+
+### What Was Built
+
+Both `threat-intel` and `automation-agent` services can now use Ollama as an alternative LLM
+backend. Provider is selected at runtime via `LLM_PROVIDER=ollama`; no code changes or rebuild
+required to switch.
+
+### Key Implementation Details
+
+- Uses the native Ollama `/api/chat` endpoint (not the OpenAI-compat shim) — required for
+  `think: false` to take effect on Qwen3-family reasoning models
+- `_call_llm()` dispatcher added to both service LLM client files; callers are provider-agnostic
+- Token counts (prompt/completion) pass through a tuple return into the GAIT audit trail unchanged
+- `extra_hosts: host.docker.internal:host-gateway` added to both services for Linux Docker Engine
+  compatibility when Ollama is on the Docker host machine
+
+### Phase 6 Status
+
+- **Ollama provider**: ✅ `qwen3.5:9b` tested and confirmed — valid JSON threat narratives + action proposals
+- **Anthropic provider**: ✅ Unchanged; still default; no regression
+- **Provider switching**: ✅ No rebuild required — env var only
+- **GAIT audit trail**: ✅ `provider` and `model` fields added to every audit record
+- **Thinking model support**: ✅ `think: false` via native API suppresses reasoning chain
+
+### Config Added
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_PROVIDER` | `anthropic` | `anthropic` or `ollama` |
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama instance URL |
+| `OLLAMA_MODEL` | `llama3.2:3b` | Model tag (`ollama list`) |
+
+See [PHASE6_OLLAMA_PROVIDER.md](PHASE6_OLLAMA_PROVIDER.md) for full setup and troubleshooting.
 
 ---
 
@@ -510,6 +548,19 @@ curl -s 'http://localhost:8428/api/v1/query?query=count(interface_in_octets_byte
 ---
 
 ## Change Log
+
+### 2026-03-04 — Phase 6: Ollama LLM Provider Support
+
+- ✅ Added `llm_provider`, `ollama_base_url`, `ollama_model` settings to both service `config.py` files
+- ✅ Added `_call_llm()` async dispatcher to `claude_client.py` (threat-intel) and `claude_action.py` (automation-agent)
+- ✅ Switched Ollama path from OpenAI-compat shim to native `/api/chat` endpoint — required for `think: false` to suppress Qwen3 reasoning chain
+- ✅ Added 120s explicit timeout to Ollama `httpx.AsyncClient`
+- ✅ `LLM_PROVIDER`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL` env vars added to `docker-compose.yml` for both services
+- ✅ `extra_hosts: host.docker.internal:host-gateway` added for Linux Docker Engine compatibility
+- ✅ `.env.example` updated with documented Ollama config section
+- ✅ `"provider"` field added to narrative and action-proposal response dicts
+- 📝 Created `docs/PHASE6_OLLAMA_PROVIDER.md`
+- 📝 Updated `docs/PROJECT_STATUS.md`
 
 ### 2026-02-25 — Phase 5: Automation Agent hardening + live activation
 

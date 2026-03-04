@@ -163,9 +163,14 @@ services:
       - OTX_API_KEY=${OTX_API_KEY:-}
       - IPINFO_TOKEN=${IPINFO_TOKEN:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
       - REDIS_URL=redis://redis:6379/0
       - VICTORIAMETRICS_URL=http://victoriametrics:8428
       - LOKI_URL=http://loki:3100
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - convergence
     depends_on:
@@ -190,6 +195,9 @@ services:
       - "8002:8000"   # FastAPI (host 8002 → container 8000)
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
       - REDIS_URL=redis://redis:6379/1
       - VICTORIAMETRICS_URL=http://victoriametrics:8428
       - LOKI_URL=http://loki:3100
@@ -212,6 +220,8 @@ services:
       - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-600}
     volumes:
       - automation-audit:/app/audit-repo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - convergence
     depends_on:

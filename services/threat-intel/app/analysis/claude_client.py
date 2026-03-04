@@ -1,4 +1,11 @@
-"""Anthropic Claude client for generating threat narratives."""
+"""LLM client for generating threat narratives.
+
+Supports two providers selected via the LLM_PROVIDER environment variable:
+  - "anthropic" (default): uses the Anthropic API (Claude Haiku)
+  - "ollama": uses a local/external Ollama instance via its OpenAI-compatible API
+
+Both providers return the same dict structure; callers are provider-agnostic.
+"""
 from __future__ import annotations
 
 import json
@@ -9,7 +16,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-haiku-4-5-20251001"
+# Anthropic model (used when llm_provider == "anthropic")
+_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 2000
 
 # Well-known benign infrastructure organisations — likely false positives even with threat scores
@@ -27,6 +35,50 @@ def _is_likely_fp(intel: dict) -> bool:
         return True
     org = intel.get("org", "").lower()
     return any(b in org for b in _BENIGN_ORGS)
+
+
+async def _call_llm(prompt: str, max_tokens: int) -> tuple[str, int, int]:
+    """Dispatch a single-turn prompt to the configured LLM provider.
+
+    Returns (response_text, prompt_tokens, completion_tokens).
+    Raises on connection/API errors — callers handle exceptions.
+    """
+    provider = settings.llm_provider
+
+    if provider == "anthropic":
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        message = await client.messages.create(
+            model=_ANTHROPIC_MODEL,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text
+        return text, message.usage.input_tokens, message.usage.output_tokens
+
+    if provider == "ollama":
+        import httpx
+        # Use the native Ollama API (/api/chat) rather than the OpenAI-compat shim
+        # because only the native endpoint honours think=false, which suppresses the
+        # internal reasoning chain on Qwen3-family models so output goes to content.
+        url = f"{settings.ollama_base_url}/api/chat"
+        payload = {
+            "model": settings.ollama_model,
+            "think": False,
+            "stream": False,
+            "options": {"num_predict": max_tokens},
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        async with httpx.AsyncClient(timeout=120.0) as http:
+            resp = await http.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+        text = data["message"]["content"]
+        prompt_tokens = data.get("prompt_eval_count", 0)
+        completion_tokens = data.get("eval_count", 0)
+        return text, prompt_tokens, completion_tokens
+
+    raise RuntimeError(f"Unknown llm_provider: {provider!r}. Set LLM_PROVIDER=anthropic or ollama.")
 
 
 def _build_prompt(report_data: dict[str, Any], interfaces: list[str]) -> str:
@@ -150,29 +202,34 @@ async def generate_narrative(
     report_data: dict[str, Any],
     interfaces: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Call Claude Haiku and return parsed narrative JSON."""
-    if not settings.anthropic_api_key:
-        logger.info("No Anthropic API key configured; skipping narrative generation")
+    """Generate a threat narrative using the configured LLM provider.
+
+    Returns a dict with ``available: True`` and the parsed fields on success,
+    or ``available: False`` with an ``error`` key on failure/skip.
+    """
+    provider = settings.llm_provider
+
+    # Gate: skip if required credentials/config are missing
+    if provider == "anthropic" and not settings.anthropic_api_key:
+        logger.info("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY not set; skipping narrative")
+        return {"available": False}
+    if provider == "ollama" and not settings.ollama_base_url:
+        logger.info("LLM_PROVIDER=ollama but OLLAMA_BASE_URL not set; skipping narrative")
         return {"available": False}
 
-    try:
-        import anthropic
+    model_name = _ANTHROPIC_MODEL if provider == "anthropic" else settings.ollama_model
 
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    try:
         prompt = _build_prompt(report_data, interfaces or [])
-        message = await client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw_text = message.content[0].text.strip()
-        logger.debug("Claude raw response (%d chars): %s", len(raw_text), raw_text[:200])
+        raw_text, _pt, _ct = await _call_llm(prompt, MAX_TOKENS)
+        raw_text = raw_text.strip()
+        logger.debug("LLM raw response (%s, %d chars): %s", model_name, len(raw_text), raw_text[:200])
 
         if not raw_text:
-            logger.warning("Claude returned empty response (stop_reason=%s)", message.stop_reason)
+            logger.warning("LLM returned empty response (provider=%s)", provider)
             return {"available": False, "error": "empty_response"}
 
-        # Strip markdown code fences if Claude wrapped JSON in them
+        # Strip markdown code fences if the model wrapped JSON in them
         if raw_text.startswith("```"):
             lines = raw_text.splitlines()
             inner = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else "\n".join(lines[1:])
@@ -180,11 +237,12 @@ async def generate_narrative(
 
         parsed = json.loads(raw_text)
         parsed["available"] = True
-        parsed["model"] = MODEL
+        parsed["model"] = model_name
+        parsed["provider"] = provider
         return parsed
     except json.JSONDecodeError as exc:
-        logger.warning("Claude returned non-JSON response: %s", exc)
+        logger.warning("LLM returned non-JSON response (provider=%s): %s", provider, exc)
         return {"available": False, "error": "json_parse_error"}
     except Exception as exc:
-        logger.warning("Claude narrative generation failed: %s", exc)
+        logger.warning("LLM narrative generation failed (provider=%s): %s", provider, exc)
         return {"available": False, "error": str(exc)}

@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     # Anthropic (Claude Haiku for action proposals)
     anthropic_api_key: str = ""
 
+    # LLM provider: "anthropic" (default) or "ollama"
+    llm_provider: str = "anthropic"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2:3b"
+
     # Infrastructure — uses redis DB 1 to isolate from threat-intel (DB 0)
     redis_url: str = "redis://redis:6379/1"
     victoriametrics_url: str = "http://victoriametrics:8428"
