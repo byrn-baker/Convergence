@@ -185,6 +185,38 @@ services:
       retries: 3
       start_period: 15s
 
+  # NetClaw - AI Network Engineering Agent
+  netclaw:
+    image: automateyournetwork/netclaw:latest
+    container_name: convergence-netclaw
+    ports:
+      - "18789:18789"    # OpenClaw Gateway
+      - "3001:3000"     # NetClaw Visual HUD
+    volumes:
+      - netclaw-workspace:/app/workspace
+      - ./config/netclaw:/app/config:ro
+    environment:
+      - OPENCLAW_MODE=gateway
+      - NETCLAW_LAB_MODE=false
+      - NAUTOBOT_URL=http://host.docker.internal:8000
+      - NAUTOBOT_TOKEN=${NAUTOBOT_TOKEN}
+      - NAUTOBOT_VERIFY_SSL=false
+      - VICTORIAMETRICS_URL=http://host.docker.internal:8428
+      - GRAFANA_URL=http://host.docker.internal:3000
+      - LOKI_URL=http://host.docker.internal:3100
+      - PFSENSE_HOST=${PFSENSE_HOST}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - NETWORK_USERNAME=${NETWORK_USERNAME}
+      - SNMP_COMMUNITY=${SNMP_COMMUNITY}
+    networks:
+      - convergence
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Automation Agent - Phase 5: event-driven pfSense automation with GAIT audit trail
   automation-agent:
     build:
@@ -261,6 +293,9 @@ networks:
     driver: bridge
 
 volumes:
+  netclaw-workspace:
+    name: convergence-netclaw-workspace
+
   victoriametrics-data:
     name: convergence-victoriametrics-data
   grafana-data:
