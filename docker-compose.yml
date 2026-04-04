@@ -174,7 +174,6 @@ services:
       retries: 3
       start_period: 15s
 
-  # NetClaw - AI Network Engineering Agent (CCIE L4 escalation)
   netclaw:
     image: convergence_netclaw:latest
     container_name: convergence-netclaw
@@ -183,7 +182,7 @@ services:
       - "3001:3000"      # NetClaw Visual HUD
     volumes:
       - netclaw-workspace:/app/workspace
-      - ./config/netclaw:/root/.openclaw
+      - ./config/netclaw/openclaw.json:/root/.openclaw/openclaw.json
     environment:
       - OPENCLAW_MODE=gateway
       - NETCLAW_LAB_MODE=false
@@ -191,6 +190,7 @@ services:
       - NAUTOBOT_TOKEN=${NAUTOBOT_TOKEN}
       - NAUTOBOT_VERIFY_SSL=false
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
       - VICTORIAMETRICS_URL=http://victoriametrics:8428
       - GRAFANA_URL=http://grafana:3000
       - LOKI_URL=http://loki:3100
