@@ -1,0 +1,31 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-opus-4-6",
+        "fallbacks": [
+          "anthropic/claude-sonnet-4-6"
+        ]
+      },
+      "workspace": "/app/workspace"
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "ea85f0578587eecf13920ca226c82fe954549f47c03e4924"
+    }
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.3.23-2",
+    "lastTouchedAt": "2026-04-03T17:47:40.755Z"
+  }
+}

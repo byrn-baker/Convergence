@@ -1,0 +1,775 @@
+{
+  "title": "Synology NAS Health",
+  "uid": "convergence-nas-health",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": [
+    "nas",
+    "synology",
+    "convergence"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "NAS01 System Temperature",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 45
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "expr": "nas_system_temperature_celsius{device_name=\"SynologyNAS01\"}",
+          "legendFormat": "NAS01 Temp"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "NAS02 System Temperature",
+      "type": "stat",
+      "gridPos": {
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 45
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "expr": "nas_system_temperature_celsius{device_name=\"SynologyNAS02\"}",
+          "legendFormat": "NAS02 Temp"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "NAS01 Power Status",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Normal",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "FAILED",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "nas_power_status_ratio{device_name=\"SynologyNAS01\"}",
+          "legendFormat": "NAS01 Power"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "NAS02 Power Status",
+      "type": "stat",
+      "gridPos": {
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Normal",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "FAILED",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "nas_power_status_ratio{device_name=\"SynologyNAS02\"}",
+          "legendFormat": "NAS02 Power"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "NAS01 Uptime",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "system_uptime_seconds{device_name=\"SynologyNAS01\"} / 100",
+          "legendFormat": "NAS01 Uptime"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "NAS02 Uptime",
+      "type": "stat",
+      "gridPos": {
+        "x": 15,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "system_uptime_seconds{device_name=\"SynologyNAS02\"} / 100",
+          "legendFormat": "NAS02 Uptime"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Disk Status \u2014 NAS01",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Normal",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "Initialized",
+                  "color": "blue"
+                },
+                "3": {
+                  "text": "Not Init",
+                  "color": "yellow"
+                },
+                "4": {
+                  "text": "Partition Fail",
+                  "color": "orange"
+                },
+                "5": {
+                  "text": "CRASHED",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "disk_id"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "nas_disk_status_ratio{device_name=\"SynologyNAS01\"}",
+          "legendFormat": "{{disk_id}} Status",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "nas_disk_temperature_celsius{device_name=\"SynologyNAS01\"}",
+          "legendFormat": "{{disk_id}} Temp",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk_id": "Disk",
+              "Value #A": "Status",
+              "Value #B": "Temp (\u00b0C)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Disk Status \u2014 NAS02",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Normal",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "Initialized",
+                  "color": "blue"
+                },
+                "3": {
+                  "text": "Not Init",
+                  "color": "yellow"
+                },
+                "4": {
+                  "text": "Partition Fail",
+                  "color": "orange"
+                },
+                "5": {
+                  "text": "CRASHED",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "disk_id"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "nas_disk_status_ratio{device_name=\"SynologyNAS02\"}",
+          "legendFormat": "{{disk_id}} Status",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "nas_disk_temperature_celsius{device_name=\"SynologyNAS02\"}",
+          "legendFormat": "{{disk_id}} Temp",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk_id": "Disk",
+              "Value #A": "Status",
+              "Value #B": "Temp (\u00b0C)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "RAID Volume Usage \u2014 NAS01",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          },
+          "max": 1,
+          "min": 0,
+          "decimals": 1
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "displayMode": "lcd"
+      },
+      "targets": [
+        {
+          "expr": "1 - (nas_raid_free_bytes{device_name=\"SynologyNAS01\",raid_name=~\"Volume.*\"} / nas_raid_total_bytes{device_name=\"SynologyNAS01\",raid_name=~\"Volume.*\"})",
+          "legendFormat": "{{raid_name}} used %"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "RAID Volume Usage \u2014 NAS02",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          },
+          "max": 1,
+          "min": 0,
+          "decimals": 1
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "displayMode": "lcd"
+      },
+      "targets": [
+        {
+          "expr": "1 - (nas_raid_free_bytes{device_name=\"SynologyNAS02\",raid_name=~\"Volume.*\"} / nas_raid_total_bytes{device_name=\"SynologyNAS02\",raid_name=~\"Volume.*\"})",
+          "legendFormat": "{{raid_name}} used %"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "RAID Status",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 5
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Normal",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "Repairing",
+                  "color": "blue"
+                },
+                "3": {
+                  "text": "Migrating",
+                  "color": "blue"
+                },
+                "4": {
+                  "text": "Expanding",
+                  "color": "blue"
+                },
+                "7": {
+                  "text": "Syncing",
+                  "color": "yellow"
+                },
+                "8": {
+                  "text": "Parity Check",
+                  "color": "yellow"
+                },
+                "11": {
+                  "text": "DEGRADED",
+                  "color": "orange"
+                },
+                "12": {
+                  "text": "CRASHED",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "nas_raid_status_ratio",
+          "legendFormat": "{{device_name}} / {{raid_name}}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "device_name": "Device",
+              "raid_name": "Volume",
+              "Value": "Status"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "title": "Network Throughput \u2014 NAS01",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(interface_in_octets_bytes_total{device_name=\"SynologyNAS01\"}[2m])",
+          "legendFormat": "{{interface_name}} in"
+        },
+        {
+          "expr": "rate(interface_out_octets_bytes_total{device_name=\"SynologyNAS01\"}[2m])",
+          "legendFormat": "{{interface_name}} out"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "title": "Network Throughput \u2014 NAS02",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(interface_in_octets_bytes_total{device_name=\"SynologyNAS02\"}[2m])",
+          "legendFormat": "{{interface_name}} in"
+        },
+        {
+          "expr": "rate(interface_out_octets_bytes_total{device_name=\"SynologyNAS02\"}[2m])",
+          "legendFormat": "{{interface_name}} out"
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "title": "Disk Temperature Trends",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": "VictoriaMetrics",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 45
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "targets": [
+        {
+          "expr": "nas_disk_temperature",
+          "legendFormat": "{{device_name}} / {{disk_id}}"
+        }
+      ]
+    }
+  ]
+}

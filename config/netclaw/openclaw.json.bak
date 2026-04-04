@@ -1,0 +1,20 @@
+{
+  "gateway": {
+    "mode": "local",
+    "port": 18789
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/app/workspace",
+      "model": {
+        "primary": "anthropic/claude-opus-4-6",
+        "fallbacks": ["anthropic/claude-sonnet-4-6"]
+      }
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
+  }
+}
