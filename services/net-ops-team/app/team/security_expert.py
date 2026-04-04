@@ -1,10 +1,10 @@
 import httpx
-import anthropic
 
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import loki as loki_tools
 from ..tools import victoriametrics as vm_tools
+from ..llm_client import run_agentic_loop, run_agentic_question
 
 _TOOLS = [
     {
@@ -197,92 +197,30 @@ async def run_security_check() -> list:
     """
     Security Expert: deep-dive security analysis, returns findings.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    user_message = (
-        "Run a full security analysis cycle. Check firewall block rates, top attacking IPs, "
-        "threat intelligence, pending blocks, and recent firewall logs. Hunt for port scans, "
-        "brute force, C2 beaconing, and data exfiltration. Report all findings with specific "
-        "remediation steps."
+    return await run_agentic_loop(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        user_message=(
+            "Run a full security analysis cycle. Check firewall block rates, top attacking IPs, "
+            "threat intelligence, pending blocks, and recent firewall logs. Hunt for port scans, "
+            "brute force, C2 beaconing, and data exfiltration. Report all findings with specific "
+            "remediation steps."
+        ),
+        handle_tool_call=_handle_tool_call,
+        caller="security_expert",
+        findings=[],
     )
-
-    messages = [{"role": "user", "content": user_message}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return findings
 
 
 async def answer_question(question: str) -> str:
     """Run an agentic loop to answer a Discord user's security question."""
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    messages = [{"role": "user", "content": question}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if hasattr(block, "text") and block.text:
-                    return block.text[:1800]
-            return "No response generated."
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return "No response generated."
+    return await run_agentic_question(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        question=question,
+        handle_tool_call=_handle_tool_call,
+        caller="security_expert",
+    )
 
 
 async def _get_threat_intel() -> dict:
@@ -298,7 +236,7 @@ async def _get_threat_intel() -> dict:
 async def _get_pending_blocks() -> dict:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{settings.automation_agent_url}/api/v1/actions/pending")
+            resp = await client.get(f"{settings.automation_agent_url}/api/automation/pending")
             resp.raise_for_status()
             return resp.json()
     except Exception as e:

@@ -1,0 +1,5 @@
+agents/
+*.bak
+*.bak.*
+update-check.json
+logs/

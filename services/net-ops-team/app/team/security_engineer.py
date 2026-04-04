@@ -1,10 +1,10 @@
 import httpx
-import anthropic
 
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import loki as loki_tools
 from ..tools import victoriametrics as vm_tools
+from ..llm_client import run_agentic_loop
 
 _TOOLS = [
     {
@@ -133,53 +133,23 @@ async def run_security_check() -> list:
     """
     Security Engineer: analyses firewall logs and threat intel, returns findings.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    user_message = (
-        "Run your security check cycle. Review firewall block rates, recent filterlog entries, "
-        "threat intelligence hits, and any pending automated block actions."
+    return await run_agentic_loop(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        user_message=(
+            "Run your security check cycle. Review firewall block rates, recent filterlog entries, "
+            "threat intelligence hits, and any pending automated block actions."
+        ),
+        handle_tool_call=_handle_tool_call,
+        caller="security_engineer",
+        findings=[],
     )
-
-    messages = [{"role": "user", "content": user_message}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return findings
 
 
 async def _get_threat_intel() -> dict:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{settings.threat_intel_url}/api/v1/threats/summary")
+            resp = await client.get(f"{settings.threat_intel_url}/api/report")
             resp.raise_for_status()
             return resp.json()
     except Exception as e:
@@ -190,7 +160,7 @@ async def _get_pending_blocks() -> dict:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
-                f"{settings.automation_agent_url}/api/v1/actions/pending"
+                f"{settings.automation_agent_url}/api/automation/pending"
             )
             resp.raise_for_status()
             return resp.json()

@@ -1,0 +1,3 @@
+[submodule "netclaw"]
+	path = netclaw
+	url = https://github.com/automateyournetwork/netclaw.git

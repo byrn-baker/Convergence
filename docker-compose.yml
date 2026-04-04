@@ -175,6 +175,9 @@ services:
       start_period: 15s
 
   netclaw:
+    build:
+      context: ./netclaw
+      dockerfile: ../docker/netclaw.Dockerfile
     image: convergence_netclaw:latest
     container_name: convergence-netclaw
     ports:
@@ -275,7 +278,13 @@ services:
       - "8003:8000"   # FastAPI (host 8003 → container 8000)
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
       - NET_OPS_MODEL=${NET_OPS_MODEL:-claude-sonnet-4-6}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.5:9b}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
       - VICTORIAMETRICS_URL=http://victoriametrics:8428
       - LOKI_URL=http://loki:3100
       - REDIS_URL=redis://redis:6379/2

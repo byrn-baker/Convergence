@@ -1,10 +1,9 @@
-import anthropic
-
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import loki as loki_tools
 from ..tools import victoriametrics as vm_tools
 from ..tools import nautobot
+from ..llm_client import run_agentic_loop, run_agentic_question
 
 _TOOLS = [
     {
@@ -184,90 +183,28 @@ async def run_analysis() -> list:
     """
     Network Engineer: analyses interface utilization and errors, returns findings.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    user_message = (
-        "Run your network engineering analysis. Check interface utilization, error rates, "
-        "and discards on all switches. Identify any bandwidth hogs or degraded interfaces."
+    return await run_agentic_loop(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        user_message=(
+            "Run your network engineering analysis. Check interface utilization, error rates, "
+            "and discards on all switches. Identify any bandwidth hogs or degraded interfaces."
+        ),
+        handle_tool_call=_handle_tool_call,
+        caller="network_engineer",
+        findings=[],
     )
-
-    messages = [{"role": "user", "content": user_message}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return findings
 
 
 async def answer_question(question: str) -> str:
     """Run an agentic loop to answer a Discord user's network engineering question."""
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    messages = [{"role": "user", "content": question}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if hasattr(block, "text") and block.text:
-                    return block.text[:1800]
-            return "No response generated."
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return "No response generated."
+    return await run_agentic_question(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        question=question,
+        handle_tool_call=_handle_tool_call,
+        caller="network_engineer",
+    )
 
 
 def _interface_speed_bps(name: str) -> int:

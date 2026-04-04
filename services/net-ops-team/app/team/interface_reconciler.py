@@ -1,11 +1,10 @@
-import anthropic
-
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import victoriametrics as vm_tools
 from ..tools import nautobot
 from ..tools import pfsense as pfsense_tools
 from ..tools import switch_ssh
+from ..llm_client import run_agentic_loop, run_agentic_question
 
 _SWITCHES = [
     {"name": "HomeSwitch01", "ip": "192.168.3.2"},
@@ -314,96 +313,35 @@ async def run_reconciliation() -> list:
     """
     Interface Reconciler: enriches port descriptions, syncs admin state, diffs Nautobot vs SNMP.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    user_message = (
-        "Run a full interface reconciliation on HomeSwitch01 and HomeSwitch02. "
-        "For each switch: "
-        "(1) Get the MAC address table and DHCP/ARP data, then write enriched descriptions "
-        "(VLAN | hostname | IP) to every active access port on both the switch and Nautobot. "
-        "(2) Compare Nautobot enabled state with the switch admin state and sync any mismatches "
-        "by pushing shutdown/no shutdown to the switch. "
-        "(3) Diff SNMP interfaces against Nautobot inventory and fix gaps. "
-        "Report all findings."
+    return await run_agentic_loop(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        user_message=(
+            "Run a full interface reconciliation on HomeSwitch01 and HomeSwitch02. "
+            "For each switch: "
+            "(1) Get the MAC address table and DHCP/ARP data, then write enriched descriptions "
+            "(VLAN | hostname | IP) to every active access port on both the switch and Nautobot. "
+            "(2) Compare Nautobot enabled state with the switch admin state and sync any mismatches "
+            "by pushing shutdown/no shutdown to the switch. "
+            "(3) Diff SNMP interfaces against Nautobot inventory and fix gaps. "
+            "Report all findings."
+        ),
+        handle_tool_call=_handle_tool_call,
+        caller="interface_reconciler",
+        findings=[],
+        max_tokens=8192,
     )
-
-    messages = [{"role": "user", "content": user_message}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=8192,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return findings
 
 
 async def answer_question(question: str) -> str:
     """Run an agentic loop to answer a Discord user's question about interface reconciliation."""
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    messages = [{"role": "user", "content": question}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if hasattr(block, "text") and block.text:
-                    return block.text[:1800]
-            return "No response generated."
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return "No response generated."
+    return await run_agentic_question(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        question=question,
+        handle_tool_call=_handle_tool_call,
+        caller="interface_reconciler",
+    )
 
 
 async def _get_snmp_interfaces(device_name: str) -> list[str]:

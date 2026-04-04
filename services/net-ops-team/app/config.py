@@ -3,8 +3,21 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # LLM provider: "anthropic" (default), "ollama", or "openai"
+    llm_provider: str = Field(default="anthropic", alias="LLM_PROVIDER")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     model: str = Field(default="claude-sonnet-4-6", alias="NET_OPS_MODEL")
+
+    # Ollama (used when llm_provider=ollama)
+    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
+    ollama_model: str = Field(default="qwen3.5:9b", alias="OLLAMA_MODEL")
+
+    # OpenAI-compatible (used when llm_provider=openai — works with OpenRouter, vLLM, LiteLLM, etc.)
+    openai_base_url: str = Field(default="", alias="OPENAI_BASE_URL")
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    openai_model: str = Field(default="", alias="OPENAI_MODEL")
+
+    # Infrastructure
     victoriametrics_url: str = Field(default="http://victoriametrics:8428", alias="VICTORIAMETRICS_URL")
     loki_url: str = Field(default="http://loki:3100", alias="LOKI_URL")
     redis_url: str = Field(default="redis://redis:6379/2", alias="REDIS_URL")

@@ -1,8 +1,7 @@
-import anthropic
-
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import victoriametrics as vm_tools
+from ..llm_client import run_agentic_loop, run_agentic_question
 
 _NAS_DEVICES = [
     {"name": "SynologyNAS01", "ip": "192.168.100.22"},
@@ -73,92 +72,29 @@ Report INFO with a health summary if everything looks normal, or if SNMP data is
 
 async def run_nas_check() -> list:
     """NAS Engineer: checks both Synology NAS devices for health issues."""
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                "Run your NAS health check. Check both SynologyNAS01 and SynologyNAS02. "
-                "Check system temperature, power status, all disk statuses, disk temperatures, "
-                "and RAID volume status and usage."
-            ),
-        }
-    ]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return findings
+    return await run_agentic_loop(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        user_message=(
+            "Run your NAS health check. Check both SynologyNAS01 and SynologyNAS02. "
+            "Check system temperature, power status, all disk statuses, disk temperatures, "
+            "and RAID volume status and usage."
+        ),
+        handle_tool_call=_handle_tool_call,
+        caller="nas_engineer",
+        findings=[],
+    )
 
 
 async def answer_question(question: str) -> str:
     """Run an agentic loop to answer a Discord user's NAS question."""
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    messages = [{"role": "user", "content": question}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if hasattr(block, "text") and block.text:
-                    return block.text[:1800]
-            return "No response generated."
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return "No response generated."
+    return await run_agentic_question(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        question=question,
+        handle_tool_call=_handle_tool_call,
+        caller="nas_engineer",
+    )
 
 
 async def _handle_tool_call(name: str, inputs: dict, findings: list):

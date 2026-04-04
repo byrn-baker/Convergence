@@ -1,9 +1,8 @@
-import anthropic
-
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import loki as loki_tools
 from ..tools import victoriametrics as vm_tools
+from ..llm_client import run_agentic_loop, run_agentic_question
 
 _TOOLS = [
     {
@@ -129,93 +128,29 @@ Be brief. One finding per device. If everything is healthy, one INFO finding for
 async def run_noc_watch() -> list:
     """
     NOC Watch Officer: polls all metrics and logs, returns findings.
-    Uses Claude with tools to query VictoriaMetrics and Loki.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    user_message = (
-        "Run your NOC watch cycle. Check all devices for health, interface errors, "
-        "and any anomalies in the last 5 minutes."
+    return await run_agentic_loop(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        user_message=(
+            "Run your NOC watch cycle. Check all devices for health, interface errors, "
+            "and any anomalies in the last 5 minutes."
+        ),
+        handle_tool_call=_handle_tool_call,
+        findings=[],
+        caller="noc_officer",
     )
-
-    messages = [{"role": "user", "content": user_message}]
-    findings = []
-
-    # Agentic loop
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return findings
 
 
 async def answer_question(question: str) -> str:
     """Run an agentic loop to answer a Discord user's NOC question."""
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-    messages = [{"role": "user", "content": question}]
-    findings = []
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=_SYSTEM_PROMPT,
-            tools=_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if hasattr(block, "text") and block.text:
-                    return block.text[:1800]
-            return "No response generated."
-
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = await _handle_tool_call(block.name, block.input, findings)
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": str(result),
-                        }
-                    )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
-
-    return "No response generated."
+    return await run_agentic_question(
+        system=_SYSTEM_PROMPT,
+        tools=_TOOLS,
+        question=question,
+        handle_tool_call=_handle_tool_call,
+        caller="noc_officer",
+    )
 
 
 async def _handle_tool_call(name: str, inputs: dict, findings: list):
