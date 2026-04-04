@@ -1,7 +1,7 @@
 # Convergence Platform - Project Status
 
-**Last Updated:** 2026-03-04
-**Current Phase:** Phase 6 — Ollama LLM Provider Support
+**Last Updated:** 2026-04-04
+**Current Phase:** Phase 7 — Network Operations Team (NET-OPS) — Complete
 
 ---
 
@@ -14,7 +14,113 @@
 | 3 | Alerting (Loki Rules + Grafana + Alertmanager) | ✅ Complete | ~2026-02-18 |
 | 4 | AI Threat Intelligence Service | ✅ Complete | 2026-02-21 |
 | 5 | Event-Driven Automation Agent | ✅ Complete — XML-RPC alias, Discord bot, repeat-offender tracking | 2026-02-25 |
-| **6** | **Ollama LLM Provider Support** | ✅ **Live** — `qwen3.5:9b` via external Ollama instance | **2026-03-04** |
+| 6 | Ollama LLM Provider Support | ✅ Complete — `qwen3.5:9b` via external Ollama instance | 2026-03-04 |
+| **7** | **Network Operations Team (NET-OPS)** | ✅ **Complete** — Multi-agent team, NetFlow pipeline, NAS SNMP, Nautobot DCIM writes | **2026-04-04** |
+
+---
+
+## Phase 7: Network Operations Team (NET-OPS) — 2026-04-04
+
+### What Was Built
+
+A multi-agent AI network operations team (`services/net-ops-team/`) running on the Claude Agent SDK.
+Five specialized agents run every poll cycle (default 5 minutes), each with curated tool access
+and domain expertise. The team replaces passive Grafana alerts with proactive, agentic monitoring
+that posts findings to Discord with Grafana dashboard links.
+
+```
+net-ops-team (FastAPI + APScheduler, port 8100)
+├── Supervisor          — orchestrates all agents, composes shift reports
+├── NOC Watch Officer   — L1: continuous situational awareness, NetFlow, syslog
+├── Network Engineer    — L2/L3: interface utilization/errors (Cisco WS-C3850-48P)
+├── Security Expert     — L2/L3: pfSense firewall + NetFlow threat hunting
+├── Security Engineer   — L2/L3: threat-intel correlation, C2/exfiltration hunting
+├── NAS Engineer        — L2/L3: Synology NAS health (SNMP, RAID, disk temps)
+├── Interface Reconciler— DCIM: Nautobot vs SNMP diff, auto-write descriptions
+└── Discord Bot         — answers ad-hoc questions via discord.py Gateway bot
+```
+
+### New Data Pipelines
+
+**NetFlow v5 (pfSense → Loki):**
+```
+pfSense Netflow v5 (UDP 2055) → OTEL Collector netflow receiver
+    → file/netflow exporter → /data/netflow/netflow.jsonl
+    → Promtail → Loki {job="netflow"}
+    → query_netflow tool (Security Expert, Security Engineer, NOC Officer)
+```
+
+**Synology NAS SNMP (both devices):**
+```
+SynologyNAS01 (192.168.100.22) ─┐
+SynologyNAS02 (192.168.100.23) ─┴→ OTEL SNMP receivers (timeout: 10s for NAT)
+    → VictoriaMetrics (metric names include unit suffix: _celsius, _ratio, _bytes)
+    → NAS Engineer agent
+```
+
+### Key Agent Knowledge Embedded in System Prompts
+
+| Agent | Embedded Knowledge |
+|-------|--------------------|
+| Network Engineer | WS-C3850-48P combo uplinks: Gi1/1/1-4 share physical ports with Te1/1/1-4; Gi auto-disabled when SFP+ active — normal behavior |
+| Network Engineer | Alert thresholds: WARNING >70%, CRITICAL >90% utilization; do NOT report sub-threshold ports |
+| NAS Engineer | Storage Pool free=0 is normal (all capacity allocated to Volumes); only `raid_name=~"Volume.*"` is user-available space |
+| NAS Engineer | OTEL unit suffixes: `nas_system_temperature_celsius`, `nas_disk_status_ratio`, etc. |
+| Security Expert | NetFlow OTLP attribute format: `{"key":"source.address","value":{"stringValue":"..."}}` |
+| Security Expert | Threat hunting patterns: port scan, brute force, C2 beaconing, exfiltration, lateral movement |
+
+### Discord Integration Changes
+
+- **Removed:** All Grafana provisioned alert rules (replaced by agent findings)
+- **Added:** Agent findings posted to Discord immediately on CRITICAL/WARNING
+- **Added:** Hourly shift report (groups findings by agent role, suppresses INFO)
+- **Added:** Per-role Grafana dashboard links in every Discord embed
+- **Changed:** Main poll cycle also sends WARNING alerts (was CRITICAL only)
+
+### Nautobot DCIM Writes (Confirmed Working)
+
+The Interface Reconciler agent auto-writes to Nautobot every poll cycle:
+- **Interface descriptions** (auto): `Connected: HDHR-10A70D51 (192.168.100.223, 00:18:dd:0a:70:d5)`
+- **Missing interfaces** (auto): Creates interfaces found in SNMP but absent from Nautobot
+- **enabled/status mismatches** (reported, not auto-written): Flagged as WARNING for human decision
+
+### pfSense PHP API Fixes
+
+`system_get_dhcp_leases()` and `system_get_arp_table()` were removed in pfSense+.
+Replaced with:
+- DHCP: Direct read of `/var/dhcpd/var/db/dhcpd.leases` with regex parsing of ISC DHCP lease blocks
+- ARP: `exec('arp -an')` with regex extraction
+
+### Repository Cleanup
+
+- Removed `openclaw/` (461 MB) — OpenClaw source code already baked into Docker image
+- Removed `convergence/` (40 KB) — dead Python CLI package, not used by any service
+- Removed `pyproject.toml` — only referenced the dead convergence CLI
+- Cleaned `Makefile` — removed all dead `poetry run convergence` / pytest / mkdocs targets
+
+### Phase 7 Status
+
+- **net-ops-team service**: ✅ Built and running
+- **All 5 agents + Reconciler + Discord bot**: ✅ Implemented
+- **NetFlow pipeline**: ✅ pfSense → OTEL → file → Promtail → Loki → agents
+- **NAS SNMP (both devices)**: ✅ Collecting via OTEL with NAT timeout fix
+- **Nautobot DCIM writes**: ✅ Confirmed via Docker logs (PATCH 200 OK)
+- **Discord agent alerts**: ✅ CRITICAL/WARNING immediate + hourly shift reports
+- **Grafana alerts removed**: ✅ All provisioned rules cleared, notifications → "Do Nothing"
+- **Repository cleanup**: ✅ 500+ MB removed, Makefile cleaned
+
+### Config Added
+
+| Variable | Service | Description |
+|----------|---------|-------------|
+| `DISCORD_WEBHOOK_URL` | net-ops-team | Webhook for shift reports + alerts |
+| `DISCORD_BOT_TOKEN` | net-ops-team | discord.py Gateway bot token |
+| `DISCORD_GUILD_ID` | net-ops-team | Guild for instant slash command sync |
+| `POLL_INTERVAL_SECONDS` | net-ops-team | How often agents run (default: 300) |
+| `SHIFT_REPORT_INTERVAL_SECONDS` | net-ops-team | How often shift reports post (default: 3600) |
+| `NETCLAW_URL` | net-ops-team | OpenClaw gateway URL for L4 escalation |
+
+See [PHASE7_NETWORK_OPS_TEAM.md](PHASE7_NETWORK_OPS_TEAM.md) for full architecture and agent details.
 
 ---
 

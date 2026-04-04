@@ -22,6 +22,8 @@ services:
       - "162:162/udp"   # SNMP traps
       - "9000:9000"     # gNMI
       - "6030:6030"     # gRPC telemetry (Cisco MDT)
+      - "2055:2055/udp" # NetFlow v5/v9 (pfSense pflow/softflowd)
+      - "4739:4739/udp" # IPFIX (NetFlow v10)
     environment:
       - NETWORK_USERNAME=${NETWORK_USERNAME:-admin}
       - NETWORK_PASSWORD=${NETWORK_PASSWORD:-admin}
@@ -30,11 +32,7 @@ services:
       - convergence
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      test: ["NONE"]
 
   # VictoriaMetrics - High-performance time-series database
   victoriametrics:
@@ -54,10 +52,7 @@ services:
       - convergence
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8428/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["NONE"]
 
   # Grafana - Visualization and dashboards
   grafana:
@@ -86,7 +81,7 @@ services:
       - loki
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "-s", "http://127.0.0.1:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -105,10 +100,7 @@ services:
       - convergence
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["NONE"]
 
   # Promtail - Tails syslog files written by OTEL Collector
   promtail:
@@ -144,10 +136,7 @@ services:
       - convergence
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["NONE"]
 
   # Threat Intelligence service - enriches top IPs with external APIs + AI narratives
   threat-intel:
@@ -179,43 +168,50 @@ services:
       - loki
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
 
-  # NetClaw - AI Network Engineering Agent
+  # NetClaw - AI Network Engineering Agent (CCIE L4 escalation)
   netclaw:
-    image: automateyournetwork/netclaw:latest
+    image: convergence_netclaw:latest
     container_name: convergence-netclaw
     ports:
-      - "18789:18789"    # OpenClaw Gateway
-      - "3001:3000"     # NetClaw Visual HUD
+      - "18789:18789"    # OpenClaw Gateway API
+      - "3001:3000"      # NetClaw Visual HUD
     volumes:
       - netclaw-workspace:/app/workspace
-      - ./config/netclaw:/app/config:ro
+      - ./config/netclaw:/root/.openclaw
     environment:
       - OPENCLAW_MODE=gateway
       - NETCLAW_LAB_MODE=false
-      - NAUTOBOT_URL=http://host.docker.internal:8000
+      - NAUTOBOT_URL=${NAUTOBOT_URL}
       - NAUTOBOT_TOKEN=${NAUTOBOT_TOKEN}
       - NAUTOBOT_VERIFY_SSL=false
-      - VICTORIAMETRICS_URL=http://host.docker.internal:8428
-      - GRAFANA_URL=http://host.docker.internal:3000
-      - LOKI_URL=http://host.docker.internal:3100
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - VICTORIAMETRICS_URL=http://victoriametrics:8428
+      - GRAFANA_URL=http://grafana:3000
+      - LOKI_URL=http://loki:3100
       - PFSENSE_HOST=${PFSENSE_HOST}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
       - NETWORK_USERNAME=${NETWORK_USERNAME}
       - SNMP_COMMUNITY=${SNMP_COMMUNITY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - convergence
+    depends_on:
+      - victoriametrics
+      - loki
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:18789/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   # Automation Agent - Phase 5: event-driven pfSense automation with GAIT audit trail
   automation-agent:
@@ -263,7 +259,55 @@ services:
       - loki
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # NET-OPS Team - Multi-agent network engineering team (Phase 7)
+  net-ops-team:
+    build:
+      context: ./services/net-ops-team
+      dockerfile: Dockerfile
+    container_name: convergence-net-ops-team
+    ports:
+      - "8003:8000"   # FastAPI (host 8003 → container 8000)
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - NET_OPS_MODEL=${NET_OPS_MODEL:-claude-sonnet-4-6}
+      - VICTORIAMETRICS_URL=http://victoriametrics:8428
+      - LOKI_URL=http://loki:3100
+      - REDIS_URL=redis://redis:6379/2
+      - THREAT_INTEL_URL=http://threat-intel:8000
+      - AUTOMATION_AGENT_URL=http://automation-agent:8000
+      - NETCLAW_URL=http://netclaw:18789
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID:-0}
+      - NETOPS_CHANNEL_ID=${NETOPS_CHANNEL_ID:-0}
+      - NAUTOBOT_URL=${NAUTOBOT_URL}
+      - NAUTOBOT_TOKEN=${NAUTOBOT_TOKEN}
+      - NAUTOBOT_VERIFY_SSL=false
+      - PFSENSE_HOST=${PFSENSE_HOST:-}
+      - PFSENSE_XMLRPC_USER=${PFSENSE_XMLRPC_USER:-admin}
+      - PFSENSE_XMLRPC_PASS=${PFSENSE_XMLRPC_PASS:-}
+      - SWITCH_SSH_USER=${SWITCH_SSH_USER:-}
+      - SWITCH_SSH_PASS=${SWITCH_SSH_PASS:-}
+      - SWITCH_SSH_ENABLE_PASS=${SWITCH_SSH_ENABLE_PASS:-}
+      - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-300}
+      - SHIFT_REPORT_INTERVAL_SECONDS=${SHIFT_REPORT_INTERVAL_SECONDS:-3600}
+    networks:
+      - convergence
+    depends_on:
+      - victoriametrics
+      - loki
+      - redis
+      - threat-intel
+      - automation-agent
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

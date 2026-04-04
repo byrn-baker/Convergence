@@ -1,39 +1,11 @@
-# Grafana Unified Alerting — Notification Policies
-# ---------------------------------------------------------------------------
-# The notification policy tree controls which contact point receives which
-# alerts based on label matchers. Routes are evaluated top-to-bottom and
-# first match wins.
-# ---------------------------------------------------------------------------
+# Notification policies — all alerts suppressed.
+# No Grafana alert rules are active; this is here to prevent Grafana from
+# sending anything if a rule is accidentally re-added.
 apiVersion: 1
 
 policies:
   - orgId: 1
-    receiver: Discord          # Default receiver for all alerts
-    group_by:
-      - alertname
-      - severity
-    group_wait: 30s            # Wait before first notification
-    group_interval: 5m         # Wait before next notification for same group
-    repeat_interval: 4h        # Re-notify if still firing after this interval
-    routes:
-      # Critical alerts → Webhook (fast) + Email
-      - receiver: Discord
-        object_matchers:
-          - ["severity", "=", "critical"]
-        group_wait: 10s
-        repeat_interval: 1h
-        continue: true         # Also evaluate subsequent routes
-
-      # Security-tagged alerts → Webhook
-      - receiver: Discord
-        object_matchers:
-          - ["team", "=", "security"]
-        group_wait: 30s
-        repeat_interval: 4h
-
-      # Network alerts (uptime, errors) → Webhook
-      - receiver: Discord
-        object_matchers:
-          - ["team", "=", "network"]
-        group_wait: 1m
-        repeat_interval: 6h
+    receiver: "Do Nothing"
+    group_by: [alertname]
+    group_wait: 1h
+    repeat_interval: 24h

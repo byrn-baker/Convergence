@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs health shell test lint format clean install validate
+.PHONY: help up down restart logs health clean build pull ps stats status debug-otel debug-metrics debug-endpoints
 
 # Colors for output
 BLUE := \033[0;34m
@@ -65,81 +65,6 @@ clean: ## Clean up all data and volumes
 	@echo "$(GREEN)✓ Cleanup complete$(NC)"
 
 # ============================================================================
-# Python / Poetry Management
-# ============================================================================
-
-install: ## Install Python dependencies with Poetry
-	@echo "$(BLUE)Installing Python dependencies...$(NC)"
-	poetry install
-	@echo "$(GREEN)✓ Dependencies installed$(NC)"
-
-shell: ## Open Poetry shell
-	@echo "$(BLUE)Opening Poetry shell...$(NC)"
-	poetry shell
-
-# ============================================================================
-# CLI Commands
-# ============================================================================
-
-init: install ## Initialize Convergence platform
-	@echo "$(BLUE)Initializing Convergence...$(NC)"
-	poetry run convergence init
-	@echo "$(GREEN)✓ Initialization complete$(NC)"
-
-validate: ## Validate all configurations
-	@echo "$(BLUE)Validating configurations...$(NC)"
-	poetry run convergence validate
-	@echo "$(GREEN)✓ Validation complete$(NC)"
-
-discover: ## Discover network devices (requires arguments)
-	@echo "$(BLUE)Discovering devices...$(NC)"
-	poetry run convergence discover $(ARGS)
-
-dashboard-generate: ## Generate Grafana dashboards
-	@echo "$(BLUE)Generating dashboards...$(NC)"
-	poetry run convergence dashboard generate --all
-	@echo "$(GREEN)✓ Dashboards generated$(NC)"
-
-# ============================================================================
-# Testing & Quality
-# ============================================================================
-
-test: ## Run all tests
-	@echo "$(BLUE)Running tests...$(NC)"
-	poetry run pytest -v
-	@echo "$(GREEN)✓ Tests complete$(NC)"
-
-test-unit: ## Run unit tests only
-	@echo "$(BLUE)Running unit tests...$(NC)"
-	poetry run pytest -v -m unit
-	@echo "$(GREEN)✓ Unit tests complete$(NC)"
-
-test-integration: ## Run integration tests
-	@echo "$(BLUE)Running integration tests...$(NC)"
-	poetry run pytest -v -m integration
-	@echo "$(GREEN)✓ Integration tests complete$(NC)"
-
-test-cov: ## Run tests with coverage report
-	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	poetry run pytest --cov=convergence --cov-report=html --cov-report=term
-	@echo "$(GREEN)✓ Coverage report generated in htmlcov/$(NC)"
-
-lint: ## Run linting checks
-	@echo "$(BLUE)Running linting...$(NC)"
-	poetry run ruff check .
-	poetry run mypy convergence/
-	@echo "$(GREEN)✓ Linting complete$(NC)"
-
-format: ## Format code with Black
-	@echo "$(BLUE)Formatting code...$(NC)"
-	poetry run black .
-	@echo "$(GREEN)✓ Code formatted$(NC)"
-
-format-check: ## Check code formatting without making changes
-	@echo "$(BLUE)Checking code formatting...$(NC)"
-	poetry run black --check .
-
-# ============================================================================
 # Development Helpers
 # ============================================================================
 
@@ -158,29 +83,6 @@ ps: ## Show running containers
 
 stats: ## Show container resource usage
 	docker stats $$(docker-compose ps -q)
-
-# ============================================================================
-# Documentation
-# ============================================================================
-
-docs-serve: ## Serve documentation locally
-	@echo "$(BLUE)Starting documentation server...$(NC)"
-	poetry run mkdocs serve
-
-docs-build: ## Build documentation
-	@echo "$(BLUE)Building documentation...$(NC)"
-	poetry run mkdocs build
-	@echo "$(GREEN)✓ Documentation built in site/$(NC)"
-
-# ============================================================================
-# Quick Actions
-# ============================================================================
-
-dev: install up ## Quick start for development (install + start)
-	@echo "$(GREEN)✓ Development environment ready!$(NC)"
-
-prod: validate up health ## Production deployment (validate + start + health check)
-	@echo "$(GREEN)✓ Production deployment complete!$(NC)"
 
 status: ## Show comprehensive status
 	@echo "$(BLUE)=== Convergence Platform Status ===$(NC)"

@@ -177,6 +177,214 @@ receivers:
             attributes:
               - name: interface.name
 
+  # Synology NAS01 - 192.168.100.22
+  snmp/nas01:
+    collection_interval: 60s
+    endpoint: "udp://192.168.100.22:161"
+    version: v2c
+    community: ${env:SNMP_COMMUNITY}
+    timeout: 10s
+    attributes:
+      # Standard IF-MIB
+      interface.name:
+        oid: "1.3.6.1.2.1.2.2.1.2"
+        indexed_value_prefix: ""
+      # SYNOLOGY-DISK-MIB disk slot identifier
+      disk.id:
+        oid: "1.3.6.1.4.1.6574.2.1.1.2"
+        indexed_value_prefix: ""
+      # SYNOLOGY-RAID-MIB volume name
+      raid.name:
+        oid: "1.3.6.1.4.1.6574.3.1.1.2"
+        indexed_value_prefix: ""
+    metrics:
+      system.uptime:
+        unit: "s"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.2.1.1.3.0"
+      # SYNOLOGY-SYSTEM-MIB
+      nas.system.temperature:
+        unit: "Cel"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.4.1.6574.1.2.0"
+      nas.power.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.4.1.6574.1.3.0"
+      # SYNOLOGY-DISK-MIB (1=Normal, 2=Initialized, 3=NotInitialized, 4=SystemPartitionFailed, 5=Crashed)
+      nas.disk.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.2.1.1.5"
+            attributes:
+              - name: disk.id
+      nas.disk.temperature:
+        unit: "Cel"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.2.1.1.6"
+            attributes:
+              - name: disk.id
+      # SYNOLOGY-RAID-MIB (1=Normal, 11=Degrade, 12=Crashed)
+      nas.raid.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.3.1.1.3"
+            attributes:
+              - name: raid.name
+      nas.raid.free_bytes:
+        unit: "By"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.3.1.1.4"
+            attributes:
+              - name: raid.name
+      nas.raid.total_bytes:
+        unit: "By"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.3.1.1.5"
+            attributes:
+              - name: raid.name
+      # IF-MIB network I/O
+      interface.in.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.10"
+            attributes:
+              - name: interface.name
+      interface.out.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.16"
+            attributes:
+              - name: interface.name
+
+  # Synology NAS02 - 192.168.100.23
+  snmp/nas02:
+    collection_interval: 60s
+    endpoint: "udp://192.168.100.23:161"
+    version: v2c
+    community: ${env:SNMP_COMMUNITY}
+    timeout: 10s
+    attributes:
+      interface.name:
+        oid: "1.3.6.1.2.1.2.2.1.2"
+        indexed_value_prefix: ""
+      disk.id:
+        oid: "1.3.6.1.4.1.6574.2.1.1.2"
+        indexed_value_prefix: ""
+      raid.name:
+        oid: "1.3.6.1.4.1.6574.3.1.1.2"
+        indexed_value_prefix: ""
+    metrics:
+      system.uptime:
+        unit: "s"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.2.1.1.3.0"
+      nas.system.temperature:
+        unit: "Cel"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.4.1.6574.1.2.0"
+      nas.power.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        scalar_oids:
+          - oid: "1.3.6.1.4.1.6574.1.3.0"
+      nas.disk.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.2.1.1.5"
+            attributes:
+              - name: disk.id
+      nas.disk.temperature:
+        unit: "Cel"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.2.1.1.6"
+            attributes:
+              - name: disk.id
+      nas.raid.status:
+        unit: "1"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.3.1.1.3"
+            attributes:
+              - name: raid.name
+      nas.raid.free_bytes:
+        unit: "By"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.3.1.1.4"
+            attributes:
+              - name: raid.name
+      nas.raid.total_bytes:
+        unit: "By"
+        gauge:
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.4.1.6574.3.1.1.5"
+            attributes:
+              - name: raid.name
+      interface.in.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.10"
+            attributes:
+              - name: interface.name
+      interface.out.octets:
+        unit: "By"
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+          - oid: "1.3.6.1.2.1.2.2.1.16"
+            attributes:
+              - name: interface.name
+
+  # NetFlow/IPFIX receiver - for pfSense packet flow data
+  # Listens on UDP 2055 (NetFlow v5/v9)
+  netflow:
+    scheme: netflow
+    hostname: "0.0.0.0"
+    port: 2055
+
   # pfSense-FW01 - 192.168.100.1
   snmp/pfsense-fw01:
     collection_interval: 60s
@@ -372,6 +580,44 @@ processors:
         value: "House"
         action: insert
 
+  # Synology NAS01 metadata
+  attributes/nas01:
+    actions:
+      - key: device.name
+        value: "SynologyNAS01"
+        action: insert
+      - key: device.ip
+        value: "192.168.100.22"
+        action: insert
+      - key: device.vendor
+        value: "Synology"
+        action: insert
+      - key: device.role
+        value: "nas"
+        action: insert
+      - key: device.site
+        value: "House"
+        action: insert
+
+  # Synology NAS02 metadata
+  attributes/nas02:
+    actions:
+      - key: device.name
+        value: "SynologyNAS02"
+        action: insert
+      - key: device.ip
+        value: "192.168.100.23"
+        action: insert
+      - key: device.vendor
+        value: "Synology"
+        action: insert
+      - key: device.role
+        value: "nas"
+        action: insert
+      - key: device.site
+        value: "House"
+        action: insert
+
   # pfSense-FW01 metadata
   attributes/pfsense-fw01:
     actions:
@@ -406,6 +652,16 @@ processors:
           - set(attributes["device.vendor"], "Netgate")
           - set(attributes["device.role"], "firewall")
           - set(attributes["device.site"], "House")
+
+  # Enrich NetFlow records with device metadata
+  transform/netflow_enrichment:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["device.name"], "pfSense-FW01")
+          - set(attributes["device.role"], "firewall")
+          - set(attributes["log_type"], "netflow")
 
   # GeoIP enrichment for source IPs
   # Process source IP and rename fields
@@ -466,6 +722,15 @@ exporters:
       max_backups: 3
     format: json
 
+  # File exporter for NetFlow logs (Promtail will tail this)
+  file/netflow:
+    path: /data/netflow/netflow.jsonl
+    rotation:
+      max_megabytes: 100
+      max_days: 3
+      max_backups: 3
+    format: json
+
   # Debug exporter for troubleshooting
   debug:
     verbosity: detailed
@@ -510,6 +775,18 @@ service:
       processors: [memory_limiter, attributes/homeswitch02, resource, batch]
       exporters: [prometheusremotewrite, debug]
 
+    # Metrics pipeline - Synology NAS01
+    metrics/nas01:
+      receivers: [snmp/nas01]
+      processors: [memory_limiter, attributes/nas01, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
+    # Metrics pipeline - Synology NAS02
+    metrics/nas02:
+      receivers: [snmp/nas02]
+      processors: [memory_limiter, attributes/nas02, resource, batch]
+      exporters: [prometheusremotewrite, debug]
+
     # Metrics pipeline - pfSense
     metrics/pfsense-fw01:
       receivers: [snmp/pfsense-fw01]
@@ -540,6 +817,12 @@ service:
       receivers: [count/firewall]
       processors: [memory_limiter, deltatocumulative/firewall, resource, batch]
       exporters: [prometheusremotewrite, debug]
+
+    # NetFlow/IPFIX pipeline - pfSense packet flow data
+    logs/netflow:
+      receivers: [netflow]
+      processors: [memory_limiter, transform/netflow_enrichment, resource, batch]
+      exporters: [file/netflow, debug]
 
     # Traces pipeline (minimal)
     traces:

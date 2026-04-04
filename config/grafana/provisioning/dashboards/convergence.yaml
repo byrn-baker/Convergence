@@ -82,4 +82,15 @@ providers:
     allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards/automation
+
+  # Synology NAS dashboards (Phase 7)
+  - name: 'NAS'
+    orgId: 1
+    folder: 'NAS'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/nas
       foldersFromFilesStructure: false

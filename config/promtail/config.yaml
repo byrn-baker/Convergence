@@ -88,3 +88,43 @@ scrape_configs:
           src_country_code:
           protocol:
           facility:
+
+  # Tail NetFlow logs from OTEL Collector
+  # Records are OTLP JSON with attributes: source.address, destination.address,
+  # network.transport, flow.io.bytes, flow.io.packets, flow.type, etc.
+  - job_name: otel-netflow
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: netflow
+          __path__: /data/netflow/*.jsonl
+
+    pipeline_stages:
+      # Extract transport protocol (tcp/udp) as label
+      - regex:
+          expression: '"key":"network\.transport","value":\{"stringValue":"(?P<transport>[^"]+)"'
+
+      # Extract flow type (netflow_v5, netflow_v9, ipfix) as label
+      - regex:
+          expression: '"key":"flow\.type","value":\{"stringValue":"(?P<flow_type>[^"]+)"'
+
+      # Extract source address for log line content
+      - regex:
+          expression: '"key":"source\.address","value":\{"stringValue":"(?P<src_addr>[^"]+)"'
+
+      # Extract destination address for log line content
+      - regex:
+          expression: '"key":"destination\.address","value":\{"stringValue":"(?P<dst_addr>[^"]+)"'
+
+      # Build a readable log line from the flow record
+      - template:
+          source: log_line
+          template: 'netflow src={{ .src_addr }} dst={{ .dst_addr }} proto={{ .transport }}'
+
+      - output:
+          source: log_line
+
+      - labels:
+          transport:
+          flow_type:
