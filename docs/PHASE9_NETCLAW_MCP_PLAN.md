@@ -265,12 +265,26 @@ NetClaw becomes a full participant in the Convergence security workflow, not an 
 
 ## Open Questions for Next Session
 
-1. **WebSocket protocol format** — need to capture the exact JSON-RPC messages the OpenClaw gateway expects. Can do this by running `openclaw agent --verbose` or reading the OpenClaw source inside the container.
+1. **WebSocket protocol requires device identity signing.** The OpenClaw gateway requires Ed25519 signature of the challenge nonce using a paired device's private key. The existing paired device identity is at `config/netclaw/identity/device.json` (private key) and `config/netclaw/devices/paired.json` (auth token + scopes). Two approaches:
 
-2. **MCP SDK version** — OpenClaw may expect a specific MCP protocol version. Check what version the existing MCP servers (nautobot-mcp, etc.) use.
+   **Option A (Recommended): REST proxy sidecar inside the NetClaw container.**
+   Add a small Python HTTP server (Flask/FastAPI, ~50 lines) that runs alongside the OpenClaw gateway inside the same container. It accepts `POST /api/agent {"message": "..."}` and calls `openclaw agent --agent main --message "..." --json` via subprocess. This avoids reimplementing the device auth protocol in Python — the CLI already handles it. Mount it via docker-compose volume and add it to the container's startup command.
 
-3. **NetClaw session management** — should the security expert reuse a single NetClaw session (persistent context) or create a new one per investigation? Persistent sessions mean NetClaw remembers prior findings; new sessions are cleaner but lose context.
+   **Option B: Python WebSocket client with Ed25519 signing.**
+   Reimplement the device auth handshake in Python using the `cryptography` library. Read the private key from the mounted identity file, sign the challenge nonce, and send the signed connect frame. More complex but no sidecar needed.
 
-4. **Rate limiting** — NetClaw on the 480b cloud model can handle one request at a time. If 5 agents all want investigations simultaneously, we need a queue. Redis task queue (Option 3 from the earlier discussion) might be needed as a backpressure mechanism even with the WebSocket approach.
+2. **Protocol details discovered in Phase 8:**
+   - Gateway WebSocket at `ws://netclaw:18789`
+   - Frame format: `{type: "req", id: "string", method: "...", params: {...}}`
+   - Connect flow: receive `connect.challenge` with nonce → sign nonce with device private key → send `connect` request with device identity → receive `connect` response
+   - Agent request: `{type: "req", id: "a1", method: "agent.run", params: {agentId: "main", message: "..."}}`
+   - Response streaming: `agent.text` events with `payload.text`, then `agent.end` event
+   - Valid client IDs: `gateway-client`, `cli`, `webchat`, `webchat-ui`, `test`, etc.
+   - Valid client modes: `backend`, `cli`, `webchat`, `ui`, `node`, `probe`, `test`
+   - Auth: device identity required even with `auth.mode: none` — uses Ed25519 key pair at `config/netclaw/identity/device.json`
 
-5. **Credential isolation** — the convergence-mcp server will need access to internal service URLs. These are Docker-internal (not exposed to the internet) but should still be passed via env vars, not hardcoded.
+3. **MCP server Python SDK** — check what version the existing MCP servers use. The `mcp` Python package provides the stdio JSON-RPC protocol implementation.
+
+4. **NetClaw session management** — the `openclaw agent` CLI creates/reuses sessions. For the REST proxy, decide whether to use `--session-id` for persistent context or let each call create a fresh session.
+
+5. **Credential isolation** — the convergence-mcp server runs inside the NetClaw container and needs access to internal service URLs (threat-intel, automation-agent, etc.). Pass via env vars in docker-compose.
