@@ -288,3 +288,10 @@ NetClaw becomes a full participant in the Convergence security workflow, not an 
 4. **NetClaw session management** — the `openclaw agent` CLI creates/reuses sessions. For the REST proxy, decide whether to use `--session-id` for persistent context or let each call create a fresh session.
 
 5. **Credential isolation** — the convergence-mcp server runs inside the NetClaw container and needs access to internal service URLs (threat-intel, automation-agent, etc.). Pass via env vars in docker-compose.
+
+6. **Control UI (browser chat)** — OpenClaw serves a browser-based chat UI (Vite + Lit SPA) at `http://<host>:18789/` (mapped to `localhost:18789` on the Docker host). It uses the same WebSocket gateway and requires one-time device pairing from the browser. To pair:
+   ```bash
+   docker exec convergence-netclaw openclaw devices list
+   docker exec convergence-netclaw openclaw devices approve <requestId>
+   ```
+   This gives you a direct browser chat with NetClaw for manual investigations. The REST proxy sidecar is still needed for programmatic access from the net-ops-team agents.
