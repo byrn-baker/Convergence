@@ -6,7 +6,7 @@
 [![Docker](https://img.shields.io/badge/deployment-docker-2496ED.svg)](https://www.docker.com/)
 [![Status](https://img.shields.io/badge/status-operational-success.svg)](docs/PROJECT_STATUS.md)
 
-Convergence is a network observability platform built on OpenTelemetry Collector, VictoriaMetrics, Grafana, Loki, and Alertmanager. It collects, stores, visualizes, and alerts on telemetry from network devices, enriches pfSense firewall events with GeoIP and four threat intelligence APIs, and uses an LLM (Claude Haiku or a local Ollama model) to generate AI security narratives and propose automated pfSense blocking actions. A Discord bot provides in-channel slash-command approval for all automation decisions. The platform includes automatic device discovery from Nautobot.
+Convergence is a network observability platform built on OpenTelemetry Collector, VictoriaMetrics, Grafana, Loki, and Alertmanager. It collects, stores, visualizes, and alerts on telemetry from network devices, enriches pfSense firewall events with GeoIP and four threat intelligence APIs, and runs a multi-agent AI NOC team that continuously monitors the network using any LLM backend (Anthropic Claude, Ollama local, Ollama Cloud, or any OpenAI-compatible API). A unified LLM client provides automatic provider fallback, credential sanitization, and audit logging. A Discord bot provides in-channel slash-command approval for automation decisions and ad-hoc network questions routed to specialist agents. The platform includes automatic device discovery from Nautobot.
 
 ---
 
@@ -21,7 +21,12 @@ Convergence is a network observability platform built on OpenTelemetry Collector
 - **Composite Threat Scoring**: 0–100 score per IP with automatic threat level classification
 - **Outbound C2 Detection**: Flags suspicious outbound destinations against threat intelligence feeds
 - **AI Threat Narratives**: LLM generates pfSense-specific executive summaries and actionable remediation steps using real interface names and pfBlockerNG paths
-- **Dual LLM Backend**: Claude Haiku (Anthropic API) or any Ollama-hosted model — switch at runtime with a single env var (`LLM_PROVIDER=anthropic|ollama`)
+- **Multi-Provider LLM Backend**: Unified client supporting Anthropic Claude, Ollama (local + cloud), and any OpenAI-compatible API (OpenRouter, vLLM, LiteLLM) — automatic fallback chain if primary provider fails
+- **Credential Sanitization**: API keys, tokens, and passwords scrubbed from all tool results before reaching the LLM
+- **LLM Audit Logging**: Every LLM call tracked with caller agent, provider, cloud vs local, prompt size, latency, and tool calls
+- **Ollama Cloud Support**: Run 480B+ parameter models via Ollama Cloud while using the same local Ollama API — no GPU required
+- **AI NOC Team**: 6 specialized agents (NOC Officer, Network Engineer, Security Expert, Security Engineer, NAS Engineer, Interface Reconciler) with domain-specific tools and system prompts
+- **Dual LLM Backend**: Claude Haiku (Anthropic API) or any Ollama-hosted model — switch at runtime with a single env var (`LLM_PROVIDER=anthropic|ollama|openai`)
 - **Event-Driven Automation**: Polls threat-intel every 10 minutes; LLM proposes pfSense blocking actions for high-risk IPs; executed live after human or auto approval
 - **Discord Bot Approval**: Five slash commands (`/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending`) for in-channel human review of automation decisions
 - **Repeat Offender Tracking**: Per-IP lifetime block counter in Redis; IPs blocked 5+ times or hammering 50+ events/hour get escalated durations and a permanent-block recommendation
@@ -177,25 +182,34 @@ convergence/
 │   │   │   └── port_services.json   # 31 high-risk port definitions
 │   │   └── app/                     # FastAPI + APScheduler enrichment pipeline
 │   │
-│   └── automation-agent/            # Phase 5: AI automation agent
-│       ├── Dockerfile
-│       ├── requirements.txt
-│       └── app/
-│           ├── main.py              # FastAPI entrypoint + GAIT audit trail
-│           ├── config.py            # Pydantic settings (all env vars)
-│           ├── scheduler.py         # APScheduler: poll threat-intel every 10m
-│           ├── state.py             # In-memory session state
-│           ├── metrics.py           # Prometheus metrics
-│           ├── actions/
-│           │   ├── pfblocker.py     # pfSense XML-RPC alias write (with write lock)
-│           │   ├── executor.py      # execute → verify → rollback → outcome
-│           │   ├── baseline.py      # VictoriaMetrics snapshot + action verification
-│           │   └── rate_limiter.py  # Hourly cap, dedup, per-IP block count
-│           ├── analysis/
-│           │   └── claude_action.py # Claude Haiku action proposal prompt
-│           └── notifications/
-│               ├── discord.py       # Webhook: approval requests + outcome DMs
-│               └── discord_bot.py   # Bot: /approve /reject /approve-all /reject-all /pending
+│   ├── net-ops-team/               # Phase 7-8: AI NOC team with unified LLM client
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── app/
+│   │       ├── main.py              # FastAPI + APScheduler (5min polls, hourly reports)
+│   │       ├── config.py            # Pydantic settings (LLM provider, Ollama, OpenAI)
+│   │       ├── models.py            # Finding, ShiftReport, AgentRole, Severity
+│   │       ├── llm_client.py        # Unified LLM: multi-provider, fallback, sanitizer, audit
+│   │       ├── team/
+│   │       │   ├── supervisor.py        # Orchestrator — runs all agents, routes questions
+│   │       │   ├── noc_officer.py       # L1 — health, uptime, anomalies
+│   │       │   ├── network_engineer.py  # L2/L3 — switches, interfaces, utilization
+│   │       │   ├── security_expert.py   # L2/L3 — firewall, NetFlow threat hunting
+│   │       │   ├── security_engineer.py # L2/L3 — threat intel correlation
+│   │       │   ├── nas_engineer.py      # L2/L3 — Synology health, RAID, disks
+│   │       │   ├── interface_reconciler.py # Nautobot DCIM sync, port enrichment
+│   │       │   └── discord_bot.py       # Discord bot — ad-hoc questions
+│   │       └── tools/
+│   │           ├── victoriametrics.py   # PromQL queries
+│   │           ├── loki.py              # LogQL + NetFlow queries
+│   │           ├── pfsense.py           # XML-RPC (DHCP leases, ARP table)
+│   │           ├── nautobot.py          # GraphQL reads + REST writes
+│   │           ├── switch_ssh.py        # Netmiko SSH to Cisco switches
+│   │           └── discord_reporter.py  # Shift reports + alerts
+│
+├── netclaw/                         # Git submodule: automateyournetwork/netclaw
+├── docker/
+│   └── netclaw.Dockerfile           # Build recipe for NetClaw container
 │
 ├── scripts/
 │   ├── nautobot_device_discovery.py # Device discovery and config generation
@@ -237,8 +251,9 @@ convergence/
 | VictoriaMetrics API | http://localhost:8428 | N/A |
 | Loki API | http://localhost:3100 | N/A |
 | Alertmanager | http://localhost:9093 | N/A |
+| NET-OPS Team API | http://localhost:8003 | N/A |
+| NetClaw Gateway | http://localhost:18789 | N/A |
 | Promtail Metrics | http://localhost:9080 | N/A |
-| OTEL Collector Health | http://localhost:13133 | N/A |
 | OTEL Collector Metrics | http://localhost:8888 | N/A |
 | Redis | localhost:6379 | N/A (IP enrichment + automation cache) |
 
@@ -335,6 +350,8 @@ See [docs/PHASE3_ALERTING.md](docs/PHASE3_ALERTING.md) for full alerting documen
 For detailed information, see the [docs](docs/) folder:
 
 - **[Project Status](docs/PROJECT_STATUS.md)**: Current capabilities, recent improvements, lessons learned, and roadmap
+- **[Phase 8: Unified LLM Client](docs/PHASE8_LLM_ABSTRACTION.md)**: Multi-provider LLM abstraction — Anthropic/Ollama/OpenAI fallback chain, credential sanitization, audit logging, Ollama Cloud, NetClaw submodule
+- **[Phase 7: Network Operations Team](docs/PHASE7_NETWORK_OPS_TEAM.md)**: Multi-agent AI NOC team — 6 specialist agents, Discord integration, Nautobot DCIM writes, NetFlow pipeline
 - **[Phase 6: Ollama LLM Provider](docs/PHASE6_OLLAMA_PROVIDER.md)**: Ollama integration guide — why the native `/api/chat` endpoint is required for thinking models, `LLM_PROVIDER` runtime switching, model recommendations, and troubleshooting
 - **[Phase 5: Automation Agent](docs/PHASE5_AUTOMATION_AGENT.md)**: Complete deployment and operations guide — pfSense XML-RPC setup, Discord bot configuration, safety controls, repeat offender tracking, GAIT audit trail, and troubleshooting
 - **[Phase 4: AI Threat Intelligence](docs/PHASE4_THREAT_INTELLIGENCE.md)**: Deployment guide, composite scoring, Grafana dashboard, Loki port analysis, troubleshooting, and bug reference for the threat-intel service
@@ -387,10 +404,17 @@ OTX_API_KEY=                        # Recommended: free registration
 IPINFO_TOKEN=                       # Recommended: 50k lookups/month free
 GREYNOISE_API_KEY=                  # Optional: community API works without key
 
-# LLM provider (Phase 6) — default: anthropic
-# LLM_PROVIDER=ollama               # Switch to a local Ollama instance
+# LLM provider (Phase 8) — default: anthropic
+# Supports: anthropic, ollama (local + cloud), openai (any OpenAI-compatible API)
+# LLM_PROVIDER=ollama
 # OLLAMA_BASE_URL=http://host.docker.internal:11434
-# OLLAMA_MODEL=qwen3.5:9b           # Any model available in `ollama list`
+# OLLAMA_MODEL=qwen3-coder:480b-cloud  # Use -cloud suffix for Ollama Cloud models
+
+# OpenAI-compatible API (OpenRouter, vLLM, LiteLLM, etc.)
+# LLM_PROVIDER=openai
+# OPENAI_BASE_URL=https://openrouter.ai/api
+# OPENAI_API_KEY=sk-or-v1-...
+# OPENAI_MODEL=qwen/qwen3-30b-a3b
 ```
 
 See [.env.example](.env.example) for all available options.
@@ -484,7 +508,8 @@ curl -s -u admin:admin http://localhost:3000/api/v1/provisioning/contact-points 
 - **Discord bot approval**: `/approve`, `/reject`, `/approve-all`, `/reject-all`, `/pending` slash commands with human-bypassed rate limits
 - **Repeat offender tracking**: per-IP lifetime block counter; escalated TTL (168h) + permanent block recommendation at 5+ blocks or 50+ events/hour
 - **GAIT audit trail**: every AI decision committed to an immutable git branch; Discord bot approvals now create a proper `{session_id}-approved` branch recording the full execution trail (approval → execution_result → verification → outcome)
-- **Ollama LLM support**: both `threat-intel` and `automation-agent` support local Ollama models via native `/api/chat` endpoint; `LLM_PROVIDER=ollama` runtime switch — no rebuild required
+- **Phase 8: Unified LLM Client** — Multi-provider abstraction (Anthropic/Ollama/OpenAI), automatic fallback, credential sanitization, audit logging, Ollama Cloud support, NetClaw git submodule
+- **Ollama LLM support**: all three AI services (threat-intel, automation-agent, net-ops-team) support local Ollama models, Ollama Cloud models, and any OpenAI-compatible API; `LLM_PROVIDER=ollama|anthropic|openai` runtime switch — no rebuild required
 
 ### 🎯 Roadmap
 
