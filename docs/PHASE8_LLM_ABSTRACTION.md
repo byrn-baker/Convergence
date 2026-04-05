@@ -262,3 +262,62 @@ OPENAI_MODEL=qwen/qwen3-30b-a3b
 ```
 
 No rebuild needed — just change `.env` and `docker compose up -d --force-recreate net-ops-team`.
+
+---
+
+## Closed-Loop Threat Response
+
+Phase 8 also closes the gap between threat detection and action. Previously, the security expert would find a high-risk IP and post a Discord recommendation saying "block this IP." A human had to read it, log into pfSense, and manually create the rule.
+
+Now the security expert can act directly:
+
+### submit_block_action tool
+
+When the security expert identifies a high-confidence threat (composite_score >= 80, is_known_bad_actor=true), it calls `submit_block_action` which POSTs to the automation-agent's new `/api/automation/submit` endpoint. The IP goes through the full existing pipeline:
+
+1. Deduplication check (Redis TTL — won't re-process recently handled IPs)
+2. Rate limiting (MAX_ACTIONS_PER_HOUR sliding window)
+3. LLM action proposal (structured JSON with block type, duration, confidence)
+4. Approval gate (auto-approve if score >= AUTO_APPROVE_THRESHOLD, else Discord approval)
+5. pfSense execution (XML-RPC alias add → filter_configure)
+6. GAIT audit trail (every step committed to an immutable git branch)
+
+The security expert still uses `recommend_action` for things that can't be automated: policy changes, service hardening, manual forensic analysis.
+
+### investigate_host tool
+
+When the security expert finds suspicious outbound traffic from an internal IP, it calls `investigate_host` instead of just reporting "investigate 192.168.100.130." The tool:
+
+1. Queries pfSense DHCP leases — finds the MAC address and hostname
+2. Queries pfSense ARP table — fallback if DHCP doesn't have it
+3. Searches Nautobot interface inventory on both switches — finds which physical port the device is connected to
+
+The security expert gets back: IP, MAC, hostname, switch name, port name, port description. It includes this in its finding so the human knows exactly what device is involved and where it's physically connected — no manual investigation needed.
+
+### System Prompt Changes
+
+The security expert's system prompt now explicitly instructs it to act:
+
+```
+ACTION PROTOCOL — when you find a threat, DO NOT just recommend blocking. Take action:
+- For high-risk IPs: use submit_block_action to send the IP directly to the automation agent
+- For suspicious internal hosts: use investigate_host to identify the device
+- Use recommend_action ONLY for things that cannot be automated
+```
+
+### New Automation Agent Endpoint
+
+`POST /api/automation/submit` — accepts block requests from the security agents:
+
+```json
+{
+  "ip": "5.187.35.26",
+  "reason": "High-confidence threat: abuse_score=95, 47 block events in 1h",
+  "score": 92,
+  "direction": "inbound",
+  "intel": {"abuse_confidence_score": 95, "org": "...", "country": "BG"},
+  "submitted_by": "security_expert"
+}
+```
+
+The IP enters the same pipeline as scheduler-discovered threats — same dedup, same rate limits, same approval flow, same GAIT audit trail.

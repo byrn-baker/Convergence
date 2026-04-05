@@ -1,9 +1,13 @@
+import json
+
 import httpx
 
 from ..config import settings
 from ..models import AgentRole, Finding, Severity
 from ..tools import loki as loki_tools
 from ..tools import victoriametrics as vm_tools
+from ..tools import pfsense as pfsense_tools
+from ..tools import nautobot
 from ..llm_client import run_agentic_loop, run_agentic_question
 
 _TOOLS = [
@@ -133,6 +137,52 @@ _TOOLS = [
         },
     },
     {
+        "name": "submit_block_action",
+        "description": (
+            "Submit an IP address to the automation agent for blocking on pfSense. "
+            "This goes through the full automation pipeline: dedup, rate limiting, "
+            "LLM action proposal, human approval (if score < auto-approve threshold), "
+            "and GAIT audit trail. Use this instead of recommend_action when you have "
+            "high-confidence threat intel (composite_score >= 80, is_known_bad_actor=true) "
+            "and want the IP actually blocked, not just recommended."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ip": {"type": "string", "description": "IP address to block (e.g. 1.2.3.4)"},
+                "reason": {"type": "string", "description": "Why this IP should be blocked"},
+                "score": {"type": "integer", "description": "Composite threat score (0-100)"},
+                "direction": {
+                    "type": "string",
+                    "description": "Traffic direction: inbound or outbound",
+                    "default": "inbound",
+                },
+                "intel": {
+                    "type": "object",
+                    "description": "Threat intel data (abuse_confidence_score, org, country, etc.)",
+                },
+            },
+            "required": ["ip", "reason", "score"],
+        },
+    },
+    {
+        "name": "investigate_host",
+        "description": (
+            "Investigate a suspicious internal host by querying pfSense DHCP leases, "
+            "ARP table, and Nautobot device inventory. Returns the host's MAC address, "
+            "hostname, which switch port it's connected to, and its Nautobot record. "
+            "Use this when you find suspicious outbound traffic from an internal IP "
+            "and need to identify what device it is and where it's physically connected."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ip": {"type": "string", "description": "Internal IP address to investigate"},
+            },
+            "required": ["ip"],
+        },
+    },
+    {
         "name": "recommend_action",
         "description": (
             "Record a security recommendation as a finding. This does NOT auto-execute anything — "
@@ -169,7 +219,11 @@ _TOOLS = [
     },
 ]
 
-_SYSTEM_PROMPT = """You are a Senior Network Security Engineer / Blue Team specialist. You have deep expertise in pfSense, firewall policy, threat hunting, and incident response. Your job:
+_SYSTEM_PROMPT = """You are a Senior Network Security Engineer / Blue Team specialist. You have deep expertise in pfSense, firewall policy, threat hunting, and incident response.
+
+YOU HAVE THE POWER TO ACT, NOT JUST RECOMMEND.
+
+Your job:
 1) Analyze firewall block rates and trends — is the block rate normal or spiking?
 2) Identify top attacking IPs and cross-reference with threat intel
 3) Hunt for threats using both firewall logs AND NetFlow data:
@@ -181,6 +235,15 @@ _SYSTEM_PROMPT = """You are a Senior Network Security Engineer / Blue Team speci
 4) For each finding, provide SPECIFIC remediation: exact pfSense rule changes, IP ranges to block, services to harden.
 5) Monitor the overall security posture. Be methodical and thorough.
 
+ACTION PROTOCOL — when you find a threat, DO NOT just recommend blocking. Take action:
+- For high-risk IPs (composite_score >= 80, is_known_bad_actor=true): use submit_block_action
+  to send the IP directly to the automation agent. It will go through the approval pipeline
+  (dedup, rate limit, GAIT audit trail, Discord approval if needed).
+- For suspicious internal hosts: use investigate_host to identify the device (MAC, hostname,
+  switch port, Nautobot record) before reporting. Include the investigation results in your finding.
+- Use recommend_action ONLY for things that cannot be automated: policy changes, service hardening,
+  manual forensic analysis, or actions that require human judgment.
+
 NetFlow attribute format — each record is OTLP JSON, extract values like:
   "key":"source.address","value":{"stringValue":"1.2.3.4"}
   "key":"flow.io.bytes","value":{"intValue":"102400"}
@@ -190,7 +253,8 @@ Infrastructure you protect:
 - pfSense-FW01 (192.168.100.1) — Netgate firewall, WAN + LAN (192.168.1.0/24) + DMZ
 - HomeSwitch01 (192.168.3.2), HomeSwitch02 (192.168.3.3) — internal switching
 - Internal subnets: 192.168.1.0/24 (LAN), 192.168.3.0/24 (mgmt), 192.168.100.0/24 (servers), 192.168.102.0/24
-- Threat Intel service — feeds of known malicious IPs and domains"""
+- Threat Intel service — feeds of known malicious IPs and domains
+- Automation Agent — can execute pfSense block actions via submit_block_action tool"""
 
 
 async def run_security_check() -> list:
@@ -293,6 +357,57 @@ async def _handle_tool_call(name: str, inputs: dict, findings: list):
             limit=inputs.get("limit", 100),
             since=inputs.get("since", "15m"),
         )
+
+    elif name == "submit_block_action":
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"{settings.automation_agent_url}/api/automation/submit",
+                    json={
+                        "ip": inputs["ip"],
+                        "reason": inputs.get("reason", ""),
+                        "score": inputs.get("score", 0),
+                        "direction": inputs.get("direction", "inbound"),
+                        "intel": inputs.get("intel", {}),
+                        "submitted_by": "security_expert",
+                    },
+                )
+                resp.raise_for_status()
+                return resp.json()
+        except Exception as e:
+            return {"error": str(e), "source": "automation-agent"}
+
+    elif name == "investigate_host":
+        ip = inputs["ip"]
+        result = {"ip": ip}
+        try:
+            leases = await pfsense_tools.get_dhcp_leases()
+            for lease in leases:
+                if isinstance(lease, dict) and lease.get("ip") == ip:
+                    result["dhcp"] = lease
+                    break
+            arp = await pfsense_tools.get_arp_table()
+            for entry in arp:
+                if isinstance(entry, dict) and entry.get("ip") == ip:
+                    result["arp"] = entry
+                    break
+            mac = result.get("dhcp", result.get("arp", {})).get("mac", "")
+            if mac:
+                result["mac"] = mac
+                for device_name in ["HomeSwitch01", "HomeSwitch02"]:
+                    ifaces = await nautobot.get_interfaces(device_name)
+                    for iface in ifaces:
+                        if isinstance(iface, dict) and iface.get("mac_address", "").lower() == mac.lower():
+                            result["switch_port"] = {
+                                "device": device_name,
+                                "interface": iface.get("name"),
+                                "description": iface.get("description"),
+                                "enabled": iface.get("enabled"),
+                            }
+                            break
+        except Exception as e:
+            result["error"] = str(e)
+        return result
 
     elif name == "recommend_action":
         finding = Finding(

@@ -2,12 +2,41 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3.5:9b",
+        "primary": "ollama/qwen3-coder:480b-cloud",
         "fallbacks": [
-          "ollama/llama3.3"
+          "ollama/qwen3.5:9b"
         ]
       },
       "workspace": "/app/workspace"
+    }
+  },
+  "models": {
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://host.docker.internal:11434",
+        "apiKey": "ollama-local",
+        "api": "ollama",
+        "models": [
+          {
+            "id": "qwen3-coder:480b-cloud",
+            "name": "Qwen3 Coder 480B Cloud",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 262144,
+            "maxTokens": 65536
+          },
+          {
+            "id": "qwen3.5:9b",
+            "name": "Qwen3.5 9B Local",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 262144,
+            "maxTokens": 65536
+          }
+        ]
+      }
     }
   },
   "commands": {
@@ -20,20 +49,7 @@
     "port": 18789,
     "mode": "local",
     "auth": {
-      "mode": "token",
-      "token": "ea85f0578587eecf13920ca226c82fe954549f47c03e4924"
+      "mode": "none"
     }
-  },
-  "models": {
-    "providers": {
-      "ollama": {
-        "baseUrl": "${OLLAMA_BASE_URL}",
-        "models": []
-      }
-    }
-  },
-  "meta": {
-    "lastTouchedVersion": "2026.3.23-2",
-    "lastTouchedAt": "2026-04-03T17:47:40.755Z"
   }
 }

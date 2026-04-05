@@ -268,6 +268,48 @@ async def setup_pfsense():
 
 
 # ---------------------------------------------------------------------------
+# Block submission endpoint (called by net-ops-team security agents)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/automation/submit")
+async def submit_block(request_data: dict):
+    """Accept a block request from the net-ops-team security agents.
+
+    Runs the IP through the same pipeline as the scheduler: dedup check,
+    rate limit, LLM proposal, approval gate, GAIT audit trail.
+
+    Body: {"ip": "1.2.3.4", "reason": "...", "score": 95, "direction": "inbound",
+           "intel": {...}, "submitted_by": "security_expert"}
+    """
+    ip = request_data.get("ip", "")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing 'ip' field")
+
+    threat_data = {
+        "ip": ip,
+        "score": request_data.get("score", 0),
+        "direction": request_data.get("direction", "inbound"),
+        "count": request_data.get("count", 0),
+        "intel": request_data.get("intel", {}),
+        "narrative": request_data.get("reason", ""),
+    }
+
+    from app.scheduler import process_ip
+    asyncio.create_task(process_ip(threat_data))
+
+    logger.info(
+        "Block submission accepted for IP %s from %s (score=%s)",
+        ip, request_data.get("submitted_by", "unknown"), threat_data["score"],
+    )
+    return {
+        "status": "accepted",
+        "ip": ip,
+        "message": "IP submitted to automation pipeline. Check /api/automation/pending for status.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Grafana Infinity datasource endpoints (always return arrays)
 # ---------------------------------------------------------------------------
 
