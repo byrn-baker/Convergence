@@ -10,6 +10,25 @@ import app.metrics as m
 
 logger = logging.getLogger(__name__)
 
+# Known benign infrastructure orgs — these generate firewall hits from normal
+# traffic (CDN edge nodes, DNS, cloud API endpoints, game servers, ISP infra).
+# If an IP belongs to one of these AND has a low abuse score, it's not a threat.
+_BENIGN_ORGS = {
+    "google", "cloudflare", "amazon", "microsoft", "apple", "akamai",
+    "fastly", "netflix", "roblox", "meta", "facebook", "twitter",
+    "zoom", "dropbox", "github", "cdn", "icloud", "gstatic",
+    "broadsoft", "charter", "comcast", "verizon", "at&t", "centurylink",
+    "lumen", "level3", "cogent", "hurricane electric", "he.net",
+    "conviva", "steam", "valve", "epic games", "riot games",
+    "disney", "hulu", "spotify", "twitch", "youtube",
+}
+
+
+def _is_benign_org(org: str) -> bool:
+    """Check if the org string matches a known benign infrastructure provider."""
+    org_lower = org.lower()
+    return any(b in org_lower for b in _BENIGN_ORGS)
+
 
 def _compute_score(
     abuse_score: float,
@@ -46,21 +65,31 @@ def _threat_level(score: float) -> str:
 
 
 def _is_outbound_c2(intel: dict[str, Any], direction: str) -> bool:
+    """Detect likely C2/malicious outbound destinations.
+
+    Tighter than before: requires multiple signals, not just one.
+    Benign orgs are excluded even if they have OTX pulses (popular services
+    get mentioned in threat reports without being threats themselves).
+    """
     if direction != "out":
         return False
-    is_riot = intel.get("riot", False)
-    if is_riot:
+    if intel.get("riot", False):
         return False
-    otx_count = intel.get("pulse_count", 0)
+    if _is_benign_org(intel.get("org", "")):
+        return False
+
     abuse_score = intel.get("abuse_confidence_score", 0)
+    otx_count = intel.get("pulse_count", 0)
     gn_cls = intel.get("gn_classification", "unknown")
-    composite = intel.get("composite_score", 0)
-    return (
-        otx_count > 2
-        or abuse_score > 20
-        or gn_cls == "malicious"
-        or (composite > 30 and not is_riot)
-    )
+
+    # Require strong evidence: high abuse + OTX presence, or confirmed malicious
+    if gn_cls == "malicious":
+        return True
+    if abuse_score >= 50 and otx_count >= 3:
+        return True
+    if abuse_score >= 80:
+        return True
+    return False
 
 
 async def enrich_ip(ip: str, direction: str, action: str, event_count: int) -> dict[str, Any]:
@@ -115,27 +144,40 @@ async def enrich_ip(ip: str, direction: str, action: str, event_count: int) -> d
         await cache.set_ip(ip, record)
 
     # Derived fields that depend on direction
-    record["is_known_bad_actor"] = (
-        record.get("composite_score", 0) >= 25
-        or _is_outbound_c2(record, direction)
-    )
+    org = record.get("org", "")
+    composite = record.get("composite_score", 0)
+    abuse = record.get("abuse_confidence_score", 0)
+    is_riot = record.get("riot", False)
+    is_benign = is_riot or _is_benign_org(org)
+
+    # Known bad actor: requires composite >= 50 (high/critical threat level).
+    # Benign infrastructure orgs are excluded unless abuse_score is very high,
+    # which would indicate the IP is genuinely compromised or malicious despite
+    # belonging to a legitimate org.
+    if is_benign and abuse < 80:
+        record["is_known_bad_actor"] = False
+        record["likely_false_positive"] = True
+    else:
+        record["is_known_bad_actor"] = (
+            composite >= 50
+            or _is_outbound_c2(record, direction)
+        )
+        record["likely_false_positive"] = False
 
     # Update Prometheus metrics
     labels = {
         "ip": ip,
         "direction": direction,
         "country": record.get("country", ""),
-        "org": record.get("org", ""),
+        "org": org,
         "classification": record.get("classification", "unknown"),
     }
-    m.threat_intel_ip_score.labels(**labels).set(record.get("composite_score", 0))
+    m.threat_intel_ip_score.labels(**labels).set(composite)
     m.threat_intel_ip_event_count.labels(ip=ip, direction=direction, action=action).set(event_count)
-    m.threat_intel_abuseipdb_score.labels(ip=ip, direction=direction).set(
-        record.get("abuse_confidence_score", 0)
-    )
+    m.threat_intel_abuseipdb_score.labels(ip=ip, direction=direction).set(abuse)
     m.threat_intel_otx_pulses.labels(ip=ip, direction=direction).set(record.get("pulse_count", 0))
 
-    gn_numeric = -1 if record.get("riot") else {
+    gn_numeric = -1 if is_riot else {
         "malicious": 2, "unknown": 1, "benign": 0
     }.get(record.get("gn_classification", "unknown"), 1)
     m.threat_intel_greynoise_classification.labels(ip=ip, direction=direction).set(gn_numeric)
