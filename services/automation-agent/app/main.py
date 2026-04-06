@@ -268,13 +268,13 @@ async def setup_pfsense():
 
 
 # ---------------------------------------------------------------------------
-# Block submission endpoint (called by net-ops-team security agents)
+# Block submission endpoint (called by convergence-scheduler via NetClaw)
 # ---------------------------------------------------------------------------
 
 
 @app.post("/api/automation/submit")
 async def submit_block(request_data: dict):
-    """Accept a block request from the net-ops-team security agents.
+    """Accept a block request from NetClaw or other automation sources.
 
     Runs the IP through the same pipeline as the scheduler: dedup check,
     rate limit, LLM proposal, approval gate, GAIT audit trail.

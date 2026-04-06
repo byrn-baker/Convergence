@@ -1,6 +1,6 @@
 # Phase 9: NetClaw MCP Integration — Plan
 
-**Status:** Planned
+**Status:** Implemented
 **Depends on:** Phase 8 (unified LLM client, closed-loop threat response)
 
 ---

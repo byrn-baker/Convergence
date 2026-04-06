@@ -1,7 +1,7 @@
 # Convergence Platform - Project Status
 
-**Last Updated:** 2026-04-04
-**Current Phase:** Phase 7 — Network Operations Team (NET-OPS) — Complete
+**Last Updated:** 2026-04-06
+**Current Phase:** Phase 10 — NetClaw Migration — Complete
 
 ---
 
@@ -13,9 +13,55 @@
 | 2 | pfSense Firewall Integration + GeoIP Enrichment | ✅ Complete | ~2026-02-15 |
 | 3 | Alerting (Loki Rules + Grafana + Alertmanager) | ✅ Complete | ~2026-02-18 |
 | 4 | AI Threat Intelligence Service | ✅ Complete | 2026-02-21 |
-| 5 | Event-Driven Automation Agent | ✅ Complete — XML-RPC alias, Discord bot, repeat-offender tracking | 2026-02-25 |
-| 6 | Ollama LLM Provider Support | ✅ Complete — `qwen3.5:9b` via external Ollama instance | 2026-03-04 |
-| **7** | **Network Operations Team (NET-OPS)** | ✅ **Complete** — Multi-agent team, NetFlow pipeline, NAS SNMP, Nautobot DCIM writes | **2026-04-04** |
+| 5 | Event-Driven Automation Agent | ✅ Complete | 2026-02-25 |
+| 6 | Ollama LLM Provider Support | ✅ Complete | 2026-03-04 |
+| 7 | Network Operations Team (NET-OPS) | ✅ Complete (RETIRED in Phase 10) | 2026-04-04 |
+| 8 | Unified LLM Client | ✅ Complete (RETIRED in Phase 10) | 2026-04-04 |
+| 9 | NetClaw MCP Integration | ✅ Complete | 2026-04-05 |
+| **10** | **NetClaw Migration** | ✅ **Complete** — net-ops-team retired, 4 NetClaw agents, Discord bot | **2026-04-06** |
+
+---
+
+## Phase 10: NetClaw Migration — 2026-04-06
+
+### What Was Built
+
+Retired the 6-agent Python NOC team and replaced it with NetClaw skills running on 4 named OpenClaw agents. The automation-agent's independent poll cycle was disabled — it now operates as an execute-only service.
+
+```
+NetClaw (OpenClaw Gateway + 4 named agents)
+  ├── noc agent        → convergence-noc-watch skill
+  ├── security agent   → convergence-security-monitor skill
+  ├── reconciler agent → convergence-interface-reconciler skill
+  └── main agent       → Discord chat (ad-hoc questions)
+
+convergence-scheduler (100 lines Python)
+  → Triggers all 3 skills concurrently via REST proxy
+  → Posts full detailed responses to Discord
+  → Discord bot for interactive questions
+
+automation-agent (execute-only, poll disabled)
+  → Receives block requests via /api/automation/submit
+  → GAIT audit trail, approval pipeline, pfSense execution
+```
+
+### Key Decisions
+
+- **One agent per role, not one agent for everything**: 4 named OpenClaw agents with independent sessions run concurrently — no session lock contention
+- **Skills over code**: Domain knowledge in SKILL.md files (~450 lines Markdown) instead of Python system prompts (~3,800 lines)
+- **Compromise-only blocking**: No more /32 whack-a-mole. Scanner ASNs → recommend pfBlockerNG. `submit_block_action` reserved for confirmed compromise
+- **Execute-only automation**: automation-agent's independent poll disabled (`POLL_ENABLED=false`). NetClaw decides what to block
+- **Full responses to Discord**: Detailed findings with ASN, source/destination IP, blocked/passed, count — not one-liner headlines
+
+### Bugs Fixed
+
+- pfSense crash: `system_get_dhcp_leases()` removed in 25.11, replaced with lease file parsing
+- OpenClaw `--json` flag hangs CLI, zombie processes, session locks, Ollama auth, timeout mismatches
+- Skills not found: symlinked into OpenClaw install path
+- Single-threaded proxy: switched to ThreadingMixIn with per-agent locks
+- Alert quality: strict rules for what constitutes a finding vs noise
+
+See [PHASE10_COMPLETE.md](PHASE10_COMPLETE.md) for full details.
 
 ---
 

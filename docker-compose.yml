@@ -183,10 +183,14 @@ services:
     container_name: convergence-netclaw
     ports:
       - "18789:18789"    # OpenClaw Gateway API
+      - "18790:18790"    # NetClaw REST Proxy
       - "3001:3000"      # NetClaw Visual HUD
     volumes:
       - netclaw-workspace:/app/workspace
       - ./config/netclaw:/root/.openclaw
+      - ./config/netclaw/workspace/skills:/app/workspace/skills:ro
+      - ./mcp-servers/convergence-mcp:/app/mcp-servers/convergence-mcp:ro
+      - ./mcp-servers/netclaw-proxy:/app/mcp-servers/netclaw-proxy:ro
     environment:
       - OPENCLAW_MODE=gateway
       - NETCLAW_LAB_MODE=false
@@ -194,11 +198,14 @@ services:
       - NAUTOBOT_TOKEN=${NAUTOBOT_TOKEN}
       - NAUTOBOT_VERIFY_SSL=false
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OLLAMA_API_KEY=ollama-local
+      - OLLAMA_API_KEY=${OLLAMA_CLOUD_API_KEY}
+      - OLLAMA_HOST=https://ollama.com
       - VICTORIAMETRICS_URL=http://victoriametrics:8428
       - GRAFANA_URL=http://grafana:3000
       - LOKI_URL=http://loki:3100
       - PFSENSE_HOST=${PFSENSE_HOST}
+      - PFSENSE_XMLRPC_USER=${PFSENSE_XMLRPC_USER:-admin}
+      - PFSENSE_XMLRPC_PASS=${PFSENSE_XMLRPC_PASS:-}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
       - NETWORK_USERNAME=${NETWORK_USERNAME}
       - SNMP_COMMUNITY=${SNMP_COMMUNITY}
@@ -250,6 +257,7 @@ services:
       - MAX_ACTIONS_PER_HOUR=${MAX_ACTIONS_PER_HOUR:-5}
       - BLOCK_TTL_HOURS=${BLOCK_TTL_HOURS:-24}
       - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-600}
+      - POLL_ENABLED=false
     volumes:
       - automation-audit:/app/audit-repo
     extra_hosts:
@@ -269,52 +277,29 @@ services:
       retries: 3
       start_period: 20s
 
-  # NET-OPS Team - Multi-agent network engineering team (Phase 7)
-  net-ops-team:
+  # NET-OPS Team - RETIRED in Phase 10 (replaced by convergence-scheduler + NetClaw skills)
+  # Service code archived in services/net-ops-team/ for reference
+
+  # Convergence Scheduler - Cron + Discord, triggers NetClaw skills (Phase 10)
+  convergence-scheduler:
     build:
-      context: ./services/net-ops-team
+      context: ./services/convergence-scheduler
       dockerfile: Dockerfile
-    container_name: convergence-net-ops-team
+    container_name: convergence-scheduler
     ports:
-      - "8003:8000"   # FastAPI (host 8003 → container 8000)
+      - "8004:8000"
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
-      - NET_OPS_MODEL=${NET_OPS_MODEL:-claude-sonnet-4-6}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.5:9b}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-}
-      - VICTORIAMETRICS_URL=http://victoriametrics:8428
-      - LOKI_URL=http://loki:3100
-      - REDIS_URL=redis://redis:6379/2
-      - THREAT_INTEL_URL=http://threat-intel:8000
-      - AUTOMATION_AGENT_URL=http://automation-agent:8000
-      - NETCLAW_URL=http://netclaw:18789
+      - NETCLAW_PROXY_URL=http://netclaw:18790
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
-      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID:-0}
       - NETOPS_CHANNEL_ID=${NETOPS_CHANNEL_ID:-0}
-      - NAUTOBOT_URL=${NAUTOBOT_URL}
-      - NAUTOBOT_TOKEN=${NAUTOBOT_TOKEN}
-      - NAUTOBOT_VERIFY_SSL=false
-      - PFSENSE_HOST=${PFSENSE_HOST:-}
-      - PFSENSE_XMLRPC_USER=${PFSENSE_XMLRPC_USER:-admin}
-      - PFSENSE_XMLRPC_PASS=${PFSENSE_XMLRPC_PASS:-}
-      - SWITCH_SSH_USER=${SWITCH_SSH_USER:-}
-      - SWITCH_SSH_PASS=${SWITCH_SSH_PASS:-}
-      - SWITCH_SSH_ENABLE_PASS=${SWITCH_SSH_ENABLE_PASS:-}
-      - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-300}
-      - SHIFT_REPORT_INTERVAL_SECONDS=${SHIFT_REPORT_INTERVAL_SECONDS:-3600}
+      - POLL_INTERVAL_MINUTES=${SCHEDULER_POLL_MINUTES:-10}
+      - REPORT_INTERVAL_MINUTES=${SCHEDULER_REPORT_MINUTES:-60}
+      - DEDUP_MINUTES=30
     networks:
       - convergence
     depends_on:
-      - victoriametrics
-      - loki
-      - redis
-      - threat-intel
-      - automation-agent
+      - netclaw
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]

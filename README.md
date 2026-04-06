@@ -182,30 +182,21 @@ convergence/
 │   │   │   └── port_services.json   # 31 high-risk port definitions
 │   │   └── app/                     # FastAPI + APScheduler enrichment pipeline
 │   │
-│   ├── net-ops-team/               # Phase 7-8: AI NOC team with unified LLM client
+│   ├── automation-agent/            # Phase 5: Event-driven automation (execute-only in Phase 10)
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── app/                     # FastAPI + GAIT audit trail + pfSense executor
+│   │
+│   ├── convergence-scheduler/       # Phase 10: Cron + Discord bot
 │   │   ├── Dockerfile
 │   │   ├── requirements.txt
 │   │   └── app/
-│   │       ├── main.py              # FastAPI + APScheduler (5min polls, hourly reports)
-│   │       ├── config.py            # Pydantic settings (LLM provider, Ollama, OpenAI)
-│   │       ├── models.py            # Finding, ShiftReport, AgentRole, Severity
-│   │       ├── llm_client.py        # Unified LLM: multi-provider, fallback, sanitizer, audit
-│   │       ├── team/
-│   │       │   ├── supervisor.py        # Orchestrator — runs all agents, routes questions
-│   │       │   ├── noc_officer.py       # L1 — health, uptime, anomalies
-│   │       │   ├── network_engineer.py  # L2/L3 — switches, interfaces, utilization
-│   │       │   ├── security_expert.py   # L2/L3 — firewall, NetFlow threat hunting
-│   │       │   ├── security_engineer.py # L2/L3 — threat intel correlation
-│   │       │   ├── nas_engineer.py      # L2/L3 — Synology health, RAID, disks
-│   │       │   ├── interface_reconciler.py # Nautobot DCIM sync, port enrichment
-│   │       │   └── discord_bot.py       # Discord bot — ad-hoc questions
-│   │       └── tools/
-│   │           ├── victoriametrics.py   # PromQL queries
-│   │           ├── loki.py              # LogQL + NetFlow queries
-│   │           ├── pfsense.py           # XML-RPC (DHCP leases, ARP table)
-│   │           ├── nautobot.py          # GraphQL reads + REST writes
-│   │           ├── switch_ssh.py        # Netmiko SSH to Cisco switches
-│   │           └── discord_reporter.py  # Shift reports + alerts
+│   │       ├── main.py              # FastAPI + APScheduler (10min polls, concurrent skill dispatch)
+│   │       ├── config.py            # Pydantic settings
+│   │       ├── discord.py           # Discord webhook + full response posting
+│   │       └── bot.py               # Discord bot for interactive questions
+│   │
+│   └── net-ops-team-ARCHIVED-phase10.tar.gz  # Retired Phase 7-9 code
 │
 ├── netclaw/                         # Git submodule: automateyournetwork/netclaw
 ├── docker/
@@ -251,7 +242,7 @@ convergence/
 | VictoriaMetrics API | http://localhost:8428 | N/A |
 | Loki API | http://localhost:3100 | N/A |
 | Alertmanager | http://localhost:9093 | N/A |
-| NET-OPS Team API | http://localhost:8003 | N/A |
+| Convergence Scheduler | http://localhost:8004 | N/A |
 | NetClaw Gateway | http://localhost:18789 | N/A |
 | Promtail Metrics | http://localhost:9080 | N/A |
 | OTEL Collector Metrics | http://localhost:8888 | N/A |
@@ -509,7 +500,7 @@ curl -s -u admin:admin http://localhost:3000/api/v1/provisioning/contact-points 
 - **Repeat offender tracking**: per-IP lifetime block counter; escalated TTL (168h) + permanent block recommendation at 5+ blocks or 50+ events/hour
 - **GAIT audit trail**: every AI decision committed to an immutable git branch; Discord bot approvals now create a proper `{session_id}-approved` branch recording the full execution trail (approval → execution_result → verification → outcome)
 - **Phase 8: Unified LLM Client** — Multi-provider abstraction (Anthropic/Ollama/OpenAI), automatic fallback, credential sanitization, audit logging, Ollama Cloud support, NetClaw git submodule
-- **Ollama LLM support**: all three AI services (threat-intel, automation-agent, net-ops-team) support local Ollama models, Ollama Cloud models, and any OpenAI-compatible API; `LLM_PROVIDER=ollama|anthropic|openai` runtime switch — no rebuild required
+- **Phase 10: NetClaw Migration** — Retired net-ops-team (6 Python agents), replaced with 3 NetClaw skills + 4 named OpenClaw agents running concurrently. Automation-agent poll disabled (execute-only). Discord bot for interactive questions. Full detailed findings posted to Discord.
 
 ### 🎯 Roadmap
 

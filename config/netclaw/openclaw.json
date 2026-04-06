@@ -2,36 +2,57 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen3-coder:480b-cloud",
-        "fallbacks": [
-          "ollama/qwen3.5:9b"
-        ]
+        "primary": "ollama-cloud/qwen3-coder:480b"
       },
       "workspace": "/app/workspace"
-    }
+    },
+    "list": [
+      {
+        "id": "main"
+      },
+      {
+        "id": "noc",
+        "name": "noc",
+        "workspace": "/app/workspace",
+        "agentDir": "/root/.openclaw/agents/noc/agent",
+        "model": "ollama-cloud/qwen3-coder:480b"
+      },
+      {
+        "id": "security",
+        "name": "security",
+        "workspace": "/app/workspace",
+        "agentDir": "/root/.openclaw/agents/security/agent",
+        "model": "ollama-cloud/qwen3-coder:480b"
+      },
+      {
+        "id": "reconciler",
+        "name": "reconciler",
+        "workspace": "/app/workspace",
+        "agentDir": "/root/.openclaw/agents/reconciler/agent",
+        "model": "ollama-cloud/qwen3-coder:480b"
+      }
+    ]
   },
   "models": {
     "providers": {
-      "ollama": {
-        "baseUrl": "http://192.168.100.32:11434",
-        "apiKey": "ollama-local",
-        "api": "ollama",
+      "ollama-cloud": {
+        "baseUrl": "https://ollama.com/v1",
+        "apiKey": "76dcc9780049430485e0b63c78bb2cd5.GApyAt7tN2TjgxaLnCn4qZSl",
+        "api": "openai-completions",
         "models": [
           {
-            "id": "qwen3-coder:480b-cloud",
-            "name": "Qwen3 Coder 480B Cloud",
+            "id": "qwen3-coder:480b",
+            "name": "Qwen3 Coder 480B (Ollama Cloud)",
             "reasoning": false,
-            "input": ["text"],
-            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-            "contextWindow": 262144,
-            "maxTokens": 65536
-          },
-          {
-            "id": "qwen3.5:9b",
-            "name": "Qwen3.5 9B Local",
-            "reasoning": false,
-            "input": ["text"],
-            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
             "contextWindow": 262144,
             "maxTokens": 65536
           }
@@ -51,5 +72,48 @@
     "auth": {
       "mode": "none"
     }
+  },
+  "mcp": {
+    "servers": {
+      "pfsense-mcp": {
+        "command": "python3",
+        "args": [
+          "-u",
+          "/app/netclaw/mcp-servers/pfsense-mcp/pfsense_mcp_server.py"
+        ],
+        "env": {
+          "PFSENSE_HOST": "192.168.3.1:440",
+          "PFSENSE_XMLRPC_USER": "admin",
+          "PFSENSE_XMLRPC_PASS": "@Vitron80109"
+        },
+        "name": "pfsense-mcp",
+        "type": "stdio"
+      },
+      "convergence-mcp": {
+        "command": "python3",
+        "args": [
+          "-u",
+          "/app/mcp-servers/convergence-mcp/convergence_mcp_server.py"
+        ],
+        "env": {
+          "THREAT_INTEL_URL": "http://threat-intel:8000",
+          "AUTOMATION_AGENT_URL": "http://automation-agent:8000",
+          "NET_OPS_TEAM_URL": "http://net-ops-team:8000",
+          "VICTORIAMETRICS_URL": "http://victoriametrics:8428",
+          "LOKI_URL": "http://loki:3100",
+          "PFSENSE_HOST": "192.168.3.1:440",
+          "PFSENSE_XMLRPC_USER": "admin",
+          "PFSENSE_XMLRPC_PASS": "@Vitron80109",
+          "NAUTOBOT_URL": "https://192.168.3.253",
+          "NAUTOBOT_TOKEN": "f7eb49a6f6482796e3a54a5f8fbc155eb81ec0e2"
+        },
+        "name": "convergence-mcp",
+        "type": "stdio"
+      }
+    }
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.4.2",
+    "lastTouchedAt": "2026-04-06T05:07:38.818Z"
   }
 }

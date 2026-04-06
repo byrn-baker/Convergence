@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     # ---- Scheduler ----
     # How often to poll threat-intel for new high-risk IPs (seconds)
     poll_interval_seconds: int = 600   # 10 minutes
+    # Set to false to disable independent polling — automation-agent becomes
+    # execute-only, receiving block requests via /api/automation/submit from NetClaw
+    poll_enabled: bool = True
 
     # ---- GAIT audit trail ----
     audit_repo_path: str = "/app/audit-repo"

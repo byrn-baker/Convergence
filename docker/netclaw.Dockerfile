@@ -6,9 +6,13 @@ FROM node:22-bookworm
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    python3-venv \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Allow pip to install system-wide (Bookworm externally-managed-environment)
+RUN rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED
 
 # Install pnpm (required for OpenClaw build)
 RUN npm install -g pnpm
@@ -22,12 +26,15 @@ RUN npm install -g openclaw@latest --ignore-engines
 # Copy NetClaw submodule contents
 COPY . /app/netclaw/
 
-# Install NetClaw MCP servers
+# Install NetClaw MCP servers (best-effort — some may fail if deps missing)
 RUN cd /app/netclaw && \
     if [ -f "scripts/install.sh" ]; then \
         chmod +x scripts/install.sh && \
-        ./scripts/install.sh; \
+        ./scripts/install.sh || true; \
     fi
+
+# Install MCP Python SDK (needed by pfsense-mcp + convergence-mcp)
+RUN pip3 install 'mcp[cli]>=1.0.0' 'httpx>=0.27.0'
 
 # Create workspace directory
 RUN mkdir -p /app/workspace
@@ -44,5 +51,5 @@ EXPOSE 18789 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:18789/health || exit 1
 
-# Start OpenClaw gateway
-CMD ["openclaw", "gateway", "run"]
+# Start OpenClaw gateway + REST proxy sidecar
+CMD ["sh", "-c", "ln -sf /root/.openclaw/workspace/skills/convergence-* /usr/local/lib/node_modules/openclaw/skills/ 2>/dev/null; python3 -u /app/mcp-servers/netclaw-proxy/netclaw_proxy.py & openclaw gateway run"]

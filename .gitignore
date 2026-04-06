@@ -74,3 +74,18 @@ htmlcov/
 # Generated dashboards
 dashboards/generated/
 .amazonq/
+
+# OpenClaw runtime files
+config/netclaw/openclaw.json.bak*
+config/netclaw/openclaw.json.clobbered.*
+config/netclaw/memory/
+config/netclaw/logs/
+config/netclaw/agents/
+config/netclaw/devices/
+config/netclaw/canvas/
+config/netclaw/identity/
+config/netclaw/update-check.json
+config/netclaw/exec-approvals.json
+config/netclaw/subagents/
+config/netclaw/flows/
+config/netclaw/tasks/

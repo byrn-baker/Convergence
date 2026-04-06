@@ -441,6 +441,13 @@ def start_scheduler(loop: asyncio.AbstractEventLoop) -> None:
             exc,
         )
 
+    if not settings.poll_enabled:
+        logger.info(
+            "Automation poll DISABLED (POLL_ENABLED=false). "
+            "Agent will only execute actions submitted via /api/automation/submit."
+        )
+        return
+
     _scheduler = BackgroundScheduler(daemon=True)
     _scheduler.add_job(
         _job_wrapper,
