@@ -126,3 +126,75 @@
 - **threat-intel**: Unchanged, running
 - **automation-agent**: Unchanged, running
 - All other infrastructure: Unchanged, running
+
+
+---
+
+## Critical Finding: MCP Server Registration Gap
+
+The install script (`scripts/install.sh`) has 53 steps and installs 36 MCP servers on disk. However:
+
+1. **`openclaw onboard` (Step 3) never runs** — the Dockerfile runs `install.sh || true` which skips the interactive onboard step that registers MCP servers with the gateway
+2. **Only 2 of 36 MCP servers are registered** — pfsense-mcp and convergence-mcp (manually added via `openclaw mcp set`)
+3. **The pyATS testbed points to sandbox devices** (10.10.20.x), not the actual network (192.168.3.2/3)
+4. **Grafana MCP (75 tools), Prometheus MCP, Nautobot MCP, nmap MCP, GAIT MCP** — all installed on disk but unregistered and unused
+
+### MCP Servers That MUST Be Registered for Session 2
+
+The Convergence-specific skills need these MCP servers working:
+
+| MCP Server | Needed By | Status |
+|---|---|---|
+| `pfsense-mcp` | security-monitor, interface-reconciler | ✅ Registered, tested |
+| `convergence-mcp` | security-monitor, noc-watch | ✅ Registered, tested |
+| `grafana-mcp` (mcp-grafana) | noc-watch, security-monitor (Loki LogQL) | ❌ Installed, NOT registered |
+| `prometheus-mcp` | noc-watch, nas-monitor | ❌ Installed, NOT registered |
+| `nautobot-mcp` (mcp-nautobot) | interface-reconciler, security-monitor | ❌ Installed, NOT registered |
+| `pyats-mcp` (pyATS_MCP) | interface-reconciler (show commands) | ❌ Installed, NOT registered, testbed wrong |
+| `nmap-mcp` | security-monitor (service detection) | ❌ Installed, NOT registered |
+| `gait-mcp` | all skills (audit trail) | ❌ Installed, NOT registered |
+
+### Action Required for Session 2
+
+Before writing the Convergence-specific skills:
+
+1. Register the required MCP servers via `openclaw mcp set`
+2. Update the pyATS testbed with actual device credentials (HomeSwitch01/02)
+3. Test each MCP server individually
+4. Consider running `openclaw onboard` or creating a setup script that registers all needed servers
+
+### Testbed Update Needed
+
+Current testbed: sandbox devices at 10.10.20.x
+Required testbed:
+```yaml
+devices:
+  HomeSwitch01:
+    os: iosxe
+    platform: cat3850
+    connections:
+      cli:
+        protocol: ssh
+        ip: 192.168.3.2
+        port: 22
+    credentials:
+      default:
+        username: ${SWITCH_SSH_USER}
+        password: ${SWITCH_SSH_PASS}
+      enable:
+        password: ${SWITCH_SSH_ENABLE_PASS}
+  HomeSwitch02:
+    os: iosxe
+    platform: cat3850
+    connections:
+      cli:
+        protocol: ssh
+        ip: 192.168.3.3
+        port: 22
+    credentials:
+      default:
+        username: ${SWITCH_SSH_USER}
+        password: ${SWITCH_SSH_PASS}
+      enable:
+        password: ${SWITCH_SSH_ENABLE_PASS}
+```
